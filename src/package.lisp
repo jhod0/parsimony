@@ -1,5 +1,5 @@
 
-(defpackage :parsimmons
+(defpackage :parsimony
   (:use :common-lisp)
   (:export :get-stream :put-stream :peek-stream
 

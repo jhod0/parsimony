@@ -1,6 +1,6 @@
 
 
-(defsystem parsimmons
+(defsystem parsimony
   :description "A simple parser combinator and generator library"
   :author "Jackson O'Donnell <jacksonhodonnell@gmail.com>"
   :components ((:module "src"
@@ -8,9 +8,9 @@
                 :components ((:file "package")
                              (:file "core")))))
 
-(defsystem parsimmons/tests
+(defsystem parsimony/tests
   :description "Test suite"
-  :depends-on (:parsimmons :FiveAM)
+  :depends-on (:parsimony :FiveAM)
   :components ((:module "tests"
                 :serial t
                 :components ((:file "package")

@@ -1,4 +1,4 @@
-(in-package :parsimmons)
+(in-package :parsimony)
 
 (defgeneric get-stream (stream)
   (:documentation "Take an object from a stream. Like gray streams, yields object or :eof"))

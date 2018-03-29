@@ -1,3 +1,3 @@
 
-(in-package :parsimmons/tests)
+(in-package :parsimony/tests)
 
