@@ -1,15 +1,17 @@
+;; TODO:
+; something is srong with alternative
 
 (in-package :parsimmons)
 
 (defgeneric get-stream (stream)
-            (:documentation "Take an object from a stream. Like gray streams, yields object or :eof"))
+  (:documentation "Take an object from a stream. Like gray streams, yields object or :eof"))
 
 ;; is this one necessary?
 (defgeneric put-stream (obj stream)
-            (:documentation "Replace an object in a stream"))
+  (:documentation "Replace an object in a stream"))
 
 (defgeneric peek-stream (stream)
-            (:documentation "Yields an object, withoug moving the stream forward."))
+  (:documentation "Yields an object, withoug moving the stream forward."))
 
 
 
@@ -22,9 +24,19 @@
 (defmethod peek-stream ((s stream))
   (peek-char nil s nil :eof))
 
-(defparameter *default-parse-input* *standard-input*)
 
-(define-condition parse-failure (error) ())
+(defparameter *default-parse-input* *standard-input*
+  "Default - if no parser input is specified, will use this")
+
+(define-condition parse-failure (error)
+  ((parser-name :reader :parse-failure-name)
+   (problem-input :reader :parse-failure-problem
+                  :type '(or null (cons t null)))
+   (cause :reader :parse-failure-cause
+          :type '(or null parse-failure))))
+
+(defun parse-failure-propogate (name failure)
+  (signal 'parse-failure :parser-name name :cause failure))
 
 (defmacro with-parse-input ((stream) &rest body)
   `(let ((*default-parse-input* ,stream))
@@ -38,11 +50,15 @@
   stacks
   input-stream)
 
+(defstruct (parser (:constructor make-parser-raw))
+  name
+  function)
+
 ;; input stream -> context
 (defun new-parse-context (input)
   "Constructs a new parser context which will parse the given input stream"
   (make-parse-context :framecount 0 :stacks nil
-		      :input-stream input))
+                      :input-stream input))
 
 ;; context -> frameID
 (defun new-parser-frame (ctxt)
@@ -54,9 +70,9 @@
 ;; unwinds all parsing up to and including the given frame
 (defun unwind-until (id ctxt)
   (labels ((do-unwind (lst)
-              (dolist (o (cdar lst))
-                (put-stream o (pc-input-stream ctxt)))
-              (if (eq (caar lst) id)
+             (dolist (o (cdar lst))
+               (put-stream o (pc-input-stream ctxt)))
+             (if (eq (caar lst) id)
                 (cdr lst)
                 (do-unwind (cdr lst)))))
     (setf (pc-stacks ctxt)
@@ -75,64 +91,67 @@
 ;; ======== Parser evaluation ========
 
 (defun eval-parser (parser
-   &optional (ctxt-or-stream *default-parse-input*)
-		    &key (raise t) (default :noparse))
+                    &key (input *default-parse-input*)
+                      (raise t) (default :noparse))
   "Attempts a given parser on an input stream (or existing parser context)"
-  (unless (parse-context-p ctxt-or-stream)
-    (setf ctxt-or-stream (new-parse-context ctxt-or-stream)))
+  (unless (parse-context-p input)
+    (setf input (new-parse-context input)))
   (handler-case
-      (funcall parser ctxt-or-stream)
+      (funcall (parser-function parser) input)
     (parse-failure ()
       (if raise
-	  (error 'parse-failure)
-	  default))))
+          (error 'parse-failure)
+          default))))
 
 (defmacro parse-loop ((name value &rest parser-args) &rest body)
-  (let ((pname (gensym))
-        (errname (gensym)))
+  (let ((pname (gensym)))
     `(handler-case
        (let ((,pname ,value))
          (do ((,name (eval-parser ,pname ,@parser-args)
                      (eval-parser ,pname ,@parser-args)))
            (nil)
            ,@body))
-       (parse-failure (,errname) ,errname))))
+       (parse-failure () (values)))))
 
-(defmacro make-parser (&rest body)
-  "Macro which constructs a parser, which will conduct the actiond given in BODY"
-  `(lambda (ctxt)
-     (let ((cur-frame (new-parser-frame ctxt))
-	   (input (pc-input-stream ctxt)))
-       (flet ((peek () (peek-stream input))
-	      (next ()
-		    (let ((c (get-stream input)))
-		      (unless (eq c :eof)
-		        (push-obj c ctxt))
-		      c))
-	      (fail (&rest args)
-		(apply #'error
-		       (cons 'parse-failure args))))
-	 (handler-case
-	     
-	     (progn ,@body)
-	   
-	   (parse-failure (err)
-	     (unwind-until cur-frame ctxt)
-	     (error err)))))))
+(defmacro make-parser (name &rest body)
+  "Macro which constructs a parser, with the given name, which will conduct the action given in BODY"
+  `(make-parser-raw
+      :name ,name
+      :function
+      (lambda (ctxt)
+        (let ((cur-frame (new-parser-frame ctxt))
+              (input (pc-input-stream ctxt)))
+          (flet ((peek () (peek-stream input))
+                 (next ()
+                   (let ((c (get-stream input)))
+                     (unless (eq c :eof)
+                       (push-obj c ctxt))
+                     c))
+                 (fail (&rest args)
+                   (apply #'error
+                          (cons 'parse-failure args))))
+            (declare (ignore (function peek) (function next) (function fail)))
+            (handler-case
+ 
+                (progn ,@body)
+
+              (parse-failure (err)
+                (unwind-until cur-frame ctxt)
+                (error err))))))))
 
 (defmacro defparser (name args &rest body)
   `(defun ,name ,args
-     (make-parser ,@body)))
+     (make-parser ',name ,@body)))
 
 (defmacro eval-in-context (parser &rest args)
-  `(eval-parser ,parser ctxt ,@args))
+  `(eval-parser ,parser :input ctxt ,@args))
 
 ;; ======= Parser Combinators =======
 
 (defparser alternative (&rest parsers)
   (block alt
     (dolist (p parsers)
-      (let ((v (eval-in-context p)))
+      (let ((v (eval-in-context p :raise nil)))
         (unless (eq v :noparse)
           (return-from alt v))))
     (fail)))
@@ -184,10 +203,6 @@
     (if (member c (coerce lst 'list))
       c
       (fail))))
-
-
-
-
 
 ;; ======== Testing ========
 
