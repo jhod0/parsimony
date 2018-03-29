@@ -6,3 +6,11 @@
   :components
   ((:file "package")
    (:file "parsimmons")))
+
+(defsystem parsimmons/tests
+  :description "Test suite"
+  :depends-on (:parsimmons :FiveAM)
+  :components ((:module "tests"
+                :serial t
+                :components ((:file "package")
+                             (:file "main")))))
