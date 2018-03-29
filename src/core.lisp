@@ -1,6 +1,3 @@
-;; TODO:
-; something is srong with alternative
-
 (in-package :parsimmons)
 
 (defgeneric get-stream (stream)
@@ -46,13 +43,13 @@
 ;; ======== Parser context, unwinding ========
 
 (defstruct (parse-context (:conc-name :pc-))
-  framecount
-  stacks
+  (framecount 0 :type fixnum)
+  (stacks nil :type list)
   input-stream)
 
 (defstruct (parser (:constructor make-parser-raw))
   name
-  function)
+  (function (error "must provide function") :type (function (parse-context) t)))
 
 ;; input stream -> context
 (defun new-parse-context (input)

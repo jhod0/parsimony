@@ -2,11 +2,16 @@
 (defpackage :parsimmons
   (:use :common-lisp)
   (:export :get-stream :put-stream :peek-stream
-           :*parse-input*
+
+           :*default-parse-input*
+
+           :parse-failure
+           :with-parse-input
 
            :eval-parser
-           :defparser
            :parse-loop
+           :make-parser :defparser :next :peek :fail
+           :eval-in-context
 
            :alternative :parse-all :parse-some :parse-many
 
