@@ -7,6 +7,7 @@
            :*default-parse-input*
 
            :parse-failure
+           :parse-failure-backtrace
            :with-parse-input
 
            :eval-parser

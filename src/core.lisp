@@ -26,14 +26,31 @@
   "Default - if no parser input is specified, will use this")
 
 (define-condition parse-failure (error)
-  ((parser-name :reader :parse-failure-name)
-   (problem-input :reader :parse-failure-problem
-                  :type '(or null (cons t null)))
-   (cause :reader :parse-failure-cause
-          :type '(or null parse-failure))))
+  ((parser-name :reader parse-failure-name
+                :type '(or null symbol)
+                :initform nil)
+   (problem-input :reader parse-failure-problem
+                  :type '(or null (cons t null))
+                  :initform nil)
+   (cause :reader parse-failure-cause
+          :type '(or null parse-failure)
+          :initform nil)))
 
 (defun parse-failure-propogate (name failure)
-  (signal 'parse-failure :parser-name name :cause failure))
+  (declare (type parse-failure failure)
+           (type symbol name))
+  (signal 'parse-failure :parser-name name :cause failure
+          :problem-input (parse-failure-problem failure)))
+
+(defun parse-failure-backtrace (failure)
+  (declare (type parse-failure failure))
+  (labels ((get-trace (pf)
+             (cons (parse-failure-name pf)
+                   (when (parse-failure-cause pf)
+                     (get-trace (parse-failure-cause pf))))))
+    (values (get-trace failure) (parse-failure-problem failure))))
+                       
+                      
 
 (defmacro with-parse-input ((stream) &rest body)
   `(let ((*default-parse-input* ,stream))
@@ -59,6 +76,7 @@
 
 ;; context -> frameID
 (defun new-parser-frame (ctxt)
+  (declare (type parse-context ctxt))
   (push (cons (incf (pc-framecount ctxt)) nil)
         (pc-stacks ctxt))
   (pc-framecount ctxt))
@@ -66,6 +84,8 @@
 ;; frameID context -> ?
 ;; unwinds all parsing up to and including the given frame
 (defun unwind-until (id ctxt)
+  (declare (type fixnum id)
+           (type parse-context ctxt))
   (labels ((do-unwind (lst)
              (dolist (o (cdar lst))
                (put-stream o (pc-input-stream ctxt)))
@@ -77,10 +97,12 @@
 
 (defun push-obj (obj ctxt)
   "Pushes an object to the parser context's stack"
+  (declare (type parse-context ctxt))
   (push obj (cdar (pc-stacks ctxt))))
 
 (defun pop-obj (ctxt)
   "Pops an object from the parser context's stack"
+  (declare (type parse-context ctxt))
   (pop (cadr (pc-stacks ctxt))))
 
 
@@ -91,6 +113,7 @@
                     &key (input *default-parse-input*)
                       (raise t) (default :noparse))
   "Attempts a given parser on an input stream (or existing parser context)"
+  (declare (type parser parser))
   (unless (parse-context-p input)
     (setf input (new-parse-context input)))
   (handler-case
@@ -118,6 +141,7 @@
                 (error "Parser name not a symbol: ~a" ,name))
       :function
       (lambda (ctxt)
+        (declare (type parse-context ctxt))
         (let ((cur-frame (new-parser-frame ctxt))
               (input (pc-input-stream ctxt)))
           ;; Create helper functions which may be used in
@@ -128,22 +152,22 @@
                      (unless (eq c :eof)
                        (push-obj c ctxt))
                      c))
-                 (fail (&rest args)
-                   (apply #'error
-                          (cons 'parse-failure args))))
+                 (fail (bad-input)
+                   (error 'parse-failure :problem-input bad-input)))
             (declare (ignore (function peek) (function next) (function fail)))
 
             ;; Actually execute the parser
             (handler-case
  
-                ,(if parsers
-                     `(with-parsed (ctxt) ,parsers
-                                   ,@body)
-                     `(progn ,@body))
-
-              (parse-failure (err)
-                (unwind-until cur-frame ctxt)
-                (error err))))))))
+             ,(if parsers
+                  `(with-parsed (ctxt) ,parsers
+                                ,@body)
+                `(progn ,@body))
+             
+             ;; Clean up
+             (parse-failure (err)
+                            (unwind-until cur-frame ctxt)
+                            (parse-failure-propogate ,name err))))))))
 
 (defmacro defparser (name args parsers &rest body)
   `(defun ,name ,args

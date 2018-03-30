@@ -9,7 +9,7 @@
 (defparser parse-digit () ()
   (if (digitp (peek))
     (- (char-int (next)) (char-int #\0))
-    (fail)))
+    (fail (peek))))
 
 (defparser parse-int () ()
   (let ((p (parse-digit)))
@@ -20,8 +20,8 @@
       (incf n d))))
 
 (defparser parse-char (c) ()
-  (if (eq (next) c)
-    c (fail)))
+  (if (eq (peek) c)
+    (next) (fail (peek))))
 
 (defparser parse-float ()
   ((big (parse-int))
@@ -37,4 +37,4 @@
   (let ((c (next)))
     (if (member c (coerce lst 'list))
       c
-      (fail))))
+      (fail c))))
