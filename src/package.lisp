@@ -17,4 +17,4 @@
 
            :alternative :parse-all :parse-some :parse-many :maybe
 
-           :parse-digit :parse-int :parse-char :one-of :whitespace))
+           :parse-digit :parse-int :parse-float :parse-char :one-of :whitespace))
