@@ -110,14 +110,18 @@
            ,@body))
        (parse-failure () (values)))))
 
-(defmacro make-parser (name &rest body)
+(defmacro make-parser (name parsers &rest body)
   "Macro which constructs a parser, with the given name, which will conduct the action given in BODY"
   `(make-parser-raw
-      :name ,name
+      :name (if (symbolp ,name)
+                ,name
+                (error "Parser name not a symbol: ~a" ,name))
       :function
       (lambda (ctxt)
         (let ((cur-frame (new-parser-frame ctxt))
               (input (pc-input-stream ctxt)))
+          ;; Create helper functions which may be used in
+          ;; the body
           (flet ((peek () (peek-stream input))
                  (next ()
                    (let ((c (get-stream input)))
@@ -128,17 +132,22 @@
                    (apply #'error
                           (cons 'parse-failure args))))
             (declare (ignore (function peek) (function next) (function fail)))
+
+            ;; Actually execute the parser
             (handler-case
  
-                (progn ,@body)
+                ,(if parsers
+                     `(with-parsed (ctxt) ,parsers
+                                   ,@body)
+                     `(progn ,@body))
 
               (parse-failure (err)
                 (unwind-until cur-frame ctxt)
                 (error err))))))))
 
-(defmacro defparser (name args &rest body)
+(defmacro defparser (name args parsers &rest body)
   `(defun ,name ,args
-     (make-parser ',name ,@body)))
+     (make-parser ',name ,parsers ,@body)))
 
 (defmacro with-parsed ((&optional input)
                        ((pattern parser &rest args) &rest parses)
@@ -170,7 +179,7 @@ Example:
 
 ;; ======= Parser Combinators =======
 
-(defparser alternative (&rest parsers)
+(defparser alternative (&rest parsers) ()
   (block alt
     (dolist (p parsers)
       (let ((v (eval-in-context p :raise nil)))
@@ -178,19 +187,18 @@ Example:
           (return-from alt v))))
     (fail)))
 
-(defparser parse-all (&rest parsers)
+(defparser parse-all (&rest parsers) ()
   (mapcar #'(lambda (parser) (eval-in-context parser))
           parsers))
 
-(defparser parse-some (parser)
-  (let ((fst (eval-in-context parser)))
-    (cons fst (eval-in-context (parse-many parser)))))
+(defparser parse-some (parser) ((fst parser))
+   (cons fst (eval-in-context (parse-many parser))))
 
 (defparser parse-many (parser)
-  (let ((s (parse-some parser)))
-    (eval-in-context s :raise nil :default nil)))
+  ((v (parse-some parser) :raise nil :default nil))
+  v)
 
-(defparser maybe (parser)
+(defparser maybe (parser) ()
   (handler-case
       (values t (eval-in-context parser))
     (parse-failure () (values nil nil))))
@@ -201,12 +209,12 @@ Example:
 (defun digitp (c)
   (member c (coerce "0123456789" 'list)))
 
-(defparser parse-digit ()
+(defparser parse-digit () ()
   (if (digitp (peek))
     (- (char-int (next)) (char-int #\0))
     (fail)))
 
-(defparser parse-int ()
+(defparser parse-int () ()
   (let ((p (parse-digit)))
     (do ((d (eval-in-context p) (eval-in-context p :raise nil))
          (n 0))
@@ -214,18 +222,21 @@ Example:
       (setf n (* n 10))
       (incf n d))))
 
-(defparser parse-char (c)
+(defparser parse-char (c) ()
   (if (eq (next) c)
     c (fail)))
 
 (defparser parse-float ()
-  (let (big little)
-    (setf big (eval-in-context (parse-int)))
-    (eval-in-context (parse-char #\.))
-    (setf little (eval-in-context (parse-int)))
-    (cons big little)))
+  ((big (parse-int))
+   (:ignore (parse-char #\.))
+   (little (parse-int)))
+  (labels ((decimal (n)
+             (if (< n 1)
+                 n
+                 (decimal (/ n 10)))))
+    (+ big (decimal (coerce little 'float)))))
 
-(defparser one-of (lst)
+(defparser one-of (lst) ()
   (let ((c (next)))
     (if (member c (coerce lst 'list))
       c
@@ -241,27 +252,3 @@ Example:
 
 (defvar alpha (one-of "abcdefghijklmnopqrstuvwxyz"))
 (defvar alphas (parse-some alpha))
-
-(defvar almost-same
-  (alternative (parse-all (parse-some (one-of "abc"))
-                          (parse-int)
-                          (parse-char #\k)
-                          (whitespace))
-               (parse-all (parse-some (one-of "abc"))
-                          (parse-digit)
-                          (one-of "zdef")
-                          (whitespace))))
-
-
-(defun test ()
-  (parse-loop (obj almost-same)
-     (format t "found another: ~s~%" obj))
-
-  (handler-case
-    (progn
-      (format t "~a~%" (eval-parser almost-same)))
-    (parse-failure (a)
-     (format t "toplevel parse failure: ~a~%" a))))
-
-(eval-when (:execute)
-  (test))
