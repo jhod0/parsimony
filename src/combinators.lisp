@@ -2,13 +2,14 @@
 
 (in-package :parsimony)
 
-(defparser alternative (&rest parsers) ()
-  (block alt
-    (dolist (p parsers)
-      (let ((v (eval-in-context p :raise nil)))
-        (unless (eq v :noparse)
-          (return-from alt v))))
-    (fail)))
+(defparser alternative (parser &rest parsers) ()
+  (labels ((try-all (p rest)
+             (handler-case
+              (eval-in-context p)
+              (parse-failure (p)
+                (if rest (try-all (car rest) (cdr rest))
+                  (error p))))))
+    (try-all parser parsers)))
 
 (defparser parse-all (&rest parsers) ()
   (mapcar #'(lambda (parser) (eval-in-context parser))
