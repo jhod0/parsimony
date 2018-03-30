@@ -13,4 +13,6 @@
   :components ((:module "tests"
                 :serial t
                 :components ((:file "package")
-                             (:file "main")))))
+                             (:file "main"))))
+  :perform (test-op (o p)
+             (uiop:symbol-call :fiveam :run-all-tests)))
