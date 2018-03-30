@@ -1,12 +1,11 @@
-
-
 (defsystem parsimony
   :description "A simple parser combinator and generator library"
   :author "Jackson O'Donnell <jacksonhodonnell@gmail.com>"
   :components ((:module "src"
                 :serial t
                 :components ((:file "package")
-                             (:file "core")))))
+                             (:file "core"))))
+  :in-order-to ((test-op (test-op :parsimony/tests))))
 
 (defsystem parsimony/tests
   :description "Test suite"
