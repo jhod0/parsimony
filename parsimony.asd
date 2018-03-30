@@ -4,7 +4,9 @@
   :components ((:module "src"
                 :serial t
                 :components ((:file "package")
-                             (:file "core"))))
+                             (:file "core")
+                             (:file "combinators")
+                             (:file "util-parsers"))))
   :in-order-to ((test-op (test-op :parsimony/tests))))
 
 (defsystem parsimony/tests
