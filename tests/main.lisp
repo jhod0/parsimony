@@ -12,8 +12,9 @@
 
 (defun check-parse-result (input result &optional (eq *check-function*))
   (with-input-from-string (s input)
-    (is (funcall eq (prs:eval-parser *cur-parser* :input s)
-                 result))))
+    (let ((val (prs:eval-parser *cur-parser* :input s)))
+      (is (funcall eq val result)
+          "Expected ~a, parsed ~a" result val))))
 
 (defmacro check-parse-results ((parser &optional checker) &rest checks)
   `(let ((*cur-parser* ,parser)
@@ -30,17 +31,15 @@
 
 (test test-integer
   :documentation "Tests parsing integers with library function parse-int"
-  (check-parse-results ((prs:parse-int) #'=)
-    ("123" 123)
-    ("3324123" 3324123)
-    ("42738" 42738)))
+  (for-all ((n (gen-integer :min 0 :max 1000000)))
+    (let ((*cur-parser* (prs:parse-int)))
+      (check-parse-result (format nil "~d" n) n))))
 
 (test test-float-zeros
   :documentation "Parses floats with only zeros after the decimal"
-  (check-parse-results ((prs:parse-float) #'=)
-    ("134214.0" 134214.0)
-    ("45.0" 45.0)
-    ("67.0" 67.0)))
+  (for-all ((n (gen-integer :min 0 :max 1000000)))
+    (let ((*cur-parser* (prs:parse-float)))
+      (check-parse-result (format nil "~d.0" n) n #'=))))
 
 (test test-float-decimals
    :documentation "Tests parsing real floats"
