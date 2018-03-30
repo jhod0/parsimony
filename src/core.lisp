@@ -140,6 +140,31 @@
   `(defun ,name ,args
      (make-parser ',name ,@body)))
 
+(defmacro with-parsed ((&optional input)
+                       ((pattern parser &rest args) &rest parses)
+                       &rest forms)
+  "Evaluates an arbitrary number of parsers in series, and binds them to variables
+
+Example:
+
+(with-parsed (input-stream) ;; custom input is optional - use ()
+    ((number (parse-int))
+     (:ignore (whitespace))
+     (number2 (parse-int)))
+    (cons number number2))"
+  (let ((continuation
+         (if parses
+             (list `(with-parsed ,(when input (list input))
+                      (,@parses)
+                      ,@forms))
+             forms))
+        (parse `(eval-parser ,parser ,@(when input `(:input ,input))
+                             ,@args)))
+    (if (eq pattern :ignore)
+        `(progn ,parse ,@continuation)
+        `(let ((,pattern ,parse))
+           ,@continuation))))
+  
 (defmacro eval-in-context (parser &rest args)
   `(eval-parser ,parser :input ctxt ,@args))
 
@@ -164,6 +189,11 @@
 (defparser parse-many (parser)
   (let ((s (parse-some parser)))
     (eval-in-context s :raise nil :default nil)))
+
+(defparser maybe (parser)
+  (handler-case
+      (values t (eval-in-context parser))
+    (parse-failure () (values nil nil))))
 
 
 ;; ======== Example parsers ========
