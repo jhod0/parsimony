@@ -25,6 +25,7 @@
                                 (mapcar #'(lambda (rule)
                                             (cons (car rule) (make-parser-name grammar-name (car rule))))
                                         rules-arg))))
+    (declare (ignorable terminal-names known-parsers))
     `(progn
        ,@(mapcar #'(lambda (rule) (declare (ignore rule)) (error "unimplemented"))
                  rules-arg)
