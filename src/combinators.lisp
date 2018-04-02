@@ -16,11 +16,10 @@
           parsers))
 
 (defparser parse-some (parser) ((fst parser))
-   (cons fst (eval-in-context (parse-many parser))))
+   (cons fst (recurse :raise nil :default nil)))
 
-(defparser parse-many (parser)
-  ((v (parse-some parser) :raise nil :default nil))
-  v)
+(defparser parse-many (parser) ()
+  (eval-in-context (parse-some parser) :raise nil :default nil))
 
 (defparser maybe (parser) ()
   (handler-case

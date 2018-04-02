@@ -66,7 +66,7 @@
 
 (defstruct (parser (:constructor make-parser-raw))
   name
-  (function (error "must provide function") :type (function (parse-context) t)))
+  (function (error "must provide function") :type (function (parse-context parser) t)))
 
 ;; input stream -> context
 (defun new-parse-context (input)
@@ -117,7 +117,7 @@
   (unless (parse-context-p input)
     (setf input (new-parse-context input)))
   (handler-case
-      (funcall (parser-function parser) input)
+      (funcall (parser-function parser) input parser)
     (parse-failure ()
       (if raise
           (error 'parse-failure)
@@ -140,7 +140,7 @@
                 ,name
                 (error "Parser name not a symbol: ~a" ,name))
       :function
-      (lambda (ctxt)
+      (lambda (ctxt self)
         (declare (type parse-context ctxt))
         (let ((cur-frame (new-parser-frame ctxt))
               (input (pc-input-stream ctxt)))
@@ -153,7 +153,9 @@
                        (push-obj c ctxt))
                      c))
                  (fail (bad-input)
-                   (error 'parse-failure :problem-input bad-input)))
+                       (error 'parse-failure :problem-input bad-input))
+                 (recurse (&key (raise t) (default :noparse))
+                    (eval-in-context self :raise raise :default default)))
             (declare (ignore (function peek) (function next) (function fail)))
 
             ;; Actually execute the parser
