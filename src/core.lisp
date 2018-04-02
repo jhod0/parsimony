@@ -195,10 +195,14 @@ Example:
              forms))
         (parse `(eval-parser ,parser ,@(when input `(:input ,input))
                              ,@args)))
-    (if (eq pattern :ignore)
-        `(progn ,parse ,@continuation)
+    (cond
+      ((eq pattern :ignore)
+        `(progn ,parse ,@continuation))
+      ((symbolp pattern)
         `(let ((,pattern ,parse))
-           ,@continuation))))
+           ,@continuation))
+      (t `(multiple-value-bind ,pattern ,parse
+            ,@continuation)))))
   
 (defmacro eval-in-context (parser &rest args)
   `(eval-parser ,parser :input ctxt ,@args))
