@@ -22,6 +22,14 @@
      ,@(mapcar #'(lambda (f) `(check-parse-result ,(car f) ,(cadr f)))
                checks)))
 
+(defmacro check-parse-fails (parser &rest checks)
+  `(progn
+     ,@(mapcar #'(lambda (f)
+                   `(with-input-from-string (s ,f)
+                      (signals prs:parse-failure
+                             (prs:eval-parser ,parser :input s))))
+               checks)))
+
 
 (def-suite numeric-tests
   :description "test small numeric parsers"
@@ -51,6 +59,12 @@
      ("143.342" 143.342)
      ("0.1234" 0.1234)
      ("435.987" 435.987)))
+
+(test test-float-failure
+   :documentation "Tests that floats handle invalid input correctly"
+   (check-parse-fails (prs:parse-float)
+     "1234a" "323x0" "axbcdser"))
+
 
 (def-suite combinator-tests
   :description "Tests parser combinators"
