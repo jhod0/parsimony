@@ -6,7 +6,8 @@
                 :components ((:file "package")
                              (:file "core")
                              (:file "combinators")
-                             (:file "util-parsers"))))
+                             (:file "util-parsers")
+                             (:file "grammars"))))
   :in-order-to ((test-op (test-op :parsimony/tests))))
 
 (defsystem parsimony/tests
