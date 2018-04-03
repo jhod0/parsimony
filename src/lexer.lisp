@@ -17,27 +17,28 @@
          (lexer-names (mapcar #'(lambda (term) (make-lexer-name name term))
                               terminal-names))
          (parser-core `(alternative
-                         ,@(mapcar (lambda (name) `(,name))
-                                   lexer-names))))
+                        ,@(mapcar #'(lambda (name) `(,name))
+                                  lexer-names))))
     `(labels
-       ,(mapcar #'(lambda (rule)
-                    (let ((this-name (make-lexer-name name (car rule))))
-                      `(,this-name ()
-                         (make-parser ',this-name
-                           ,@(if (cddr rule)
-                               `(,(cadr rule)
-                                  (values ,(car rule) (progn ,@(cddr rule))))
-                               (let ((tmp (gensym)))
-                                 `(((,tmp ,(cadr rule)))
-                                   (values ,(car rule) ,tmp))))))))
-                 terminals)
+         ,(mapcar #'(lambda (rule)
+                      (let ((this-name (make-lexer-name name (car rule))))
+                        `(,this-name ()
+                           (make-parser ',this-name
+                             ,@(if (cddr rule)
+                                   `(,(cadr rule)
+                                     (values ,(car rule) (progn ,@(cddr rule))))
+                                 (let ((tmp (gensym)))
+                                   `(((,tmp ,(cadr rule)))
+                                     (values ,(car rule) ,tmp))))))))
+                terminals)
        (defconstant ,name
          (make-lexer-struct :name ',name
            :documentation ,documentation
            :parser
            ,(if whitespace
-              `(make-parser ',name ((:ignore (parse-many ,whitespace)))
-                 (eval-in-context ,parser-core))
+                `(make-parser ',name ((:ignore (parse-many ,whitespace)))
+                    (eval-in-context
+                    ,parser-core))
               parser-core))))))
 
 (defmacro lex (name &rest args)

@@ -25,3 +25,9 @@
   (handler-case
       (values t (eval-in-context parser))
     (parse-failure () (values nil nil))))
+
+(defparser satisfiesp (predicate &optional parser) ()
+  (let ((obj (if parser (eval-in-context parser) (next))))
+    (if (funcall predicate obj)
+        obj
+      (fail obj))))
