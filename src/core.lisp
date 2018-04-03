@@ -25,21 +25,24 @@
   "Default - if no parser input is specified, will use this")
 
 (define-condition parse-failure (error)
-  ((parser-name :reader parse-failure-name
-                :type '(or null symbol)
-                :initform nil)
+  ((parser :reader parse-failure-name
+           :type parser
+           :initarg :parser
+           :initform nil)
    (problem-input :reader parse-failure-problem
                   :type '(or null (cons t null))
+                  :initarg :problem-input
                   :initform nil)
    (cause :reader parse-failure-cause
           :type '(or null parse-failure)
+          :initarg :cause
           :initform nil)))
 
-(defun parse-failure-propogate (name failure)
+(defun parse-failure-propogate (parser failure)
   (declare (type parse-failure failure)
-           (type symbol name))
-  (signal 'parse-failure :parser-name name :cause failure
-          :problem-input (parse-failure-problem failure)))
+           (type parser parser))
+  (error 'parse-failure :parser parser :cause failure
+         :problem-input (parse-failure-problem failure)))
 
 (defun parse-failure-backtrace (failure)
   (declare (type parse-failure failure))
@@ -119,25 +122,25 @@
                     &key (input *default-parse-input*)
                       (raise t) (default :noparse))
   "Attempts a given parser on an input stream (or existing parser context)"
-  (declare (type parser parser))
+  (declare (type parser parser)
+           (type boolean raise))
   (unless (parse-context-p input)
     (setf input (new-parse-context input)))
   (handler-case
       (funcall (parser-function parser) input parser)
-    (parse-failure ()
+    (parse-failure (err)
       (if raise
-          (error 'parse-failure)
+          (error err)
           default))))
 
 (defmacro parse-loop ((name value &rest parser-args) &rest body)
   (let ((pname (gensym)))
     `(handler-case
-       (let ((,pname ,value))
-         (do ((,name (eval-parser ,pname ,@parser-args)
-                     (eval-parser ,pname ,@parser-args)))
-           (nil)
-           ,@body))
-       (parse-failure () (values)))))
+      (let ((,pname ,value))
+        (loop do
+              (with-parsed nil ((,name ,pname ,@parser-args))
+                           ,@body)))
+      (parse-failure (e) (values)))))
 
 (defmacro make-parser (name parsers &rest body)
   "Macro which constructs a parser, with the given name, which will conduct the action given in BODY"
@@ -159,8 +162,10 @@
                        (push-obj c ctxt))
                      c))
                  (fail (bad-input)
-                       (error 'parse-failure :problem-input bad-input))
+                       (error 'parse-failure :parser self
+                              :problem-input bad-input))
                  (recurse (&key (raise t) (default :noparse))
+                    (declare (type boolean raise))
                     (eval-in-context self :raise raise :default default)))
             (declare (ignore (function peek) (function next) (function fail)))
 
@@ -175,7 +180,7 @@
              ;; Clean up
              (parse-failure (err)
                             (unwind-until cur-frame ctxt)
-                            (parse-failure-propogate ,name err))))))))
+                            (parse-failure-propogate self err))))))))
 
 (defmacro defparser (name args parsers &rest body)
   (let ((tmp (gensym)))
