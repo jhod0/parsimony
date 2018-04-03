@@ -16,8 +16,10 @@
            :with-parsed
            :eval-in-context
 
-           :alternative :parse-all :parse-some :parse-many :maybe :satisfiesp
+           :alternative :parse-all :parse-some :parse-many :maybe :satisfiesp :parse-until
 
            :parse-digit :parse-int :parse-float :parse-char :one-of :whitespace
 
-           :deflexer :lexer :get-lexer-parser :lexer-stream))
+           :deflexer :lexer :get-lexer-parser :lexer-stream
+
+           :defgrammar))

@@ -31,3 +31,10 @@
     (if (funcall predicate obj)
         obj
       (fail obj))))
+
+(defparser parse-until (parser) ((e parser :raise nil))
+  (if (eq e :noparse)
+      (let ((obj (next)))
+        (multiple-value-bind (a b) (recurse)
+          (values (cons obj a) b)))
+      (values nil e)))
