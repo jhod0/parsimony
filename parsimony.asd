@@ -19,4 +19,4 @@
                 :components ((:file "package")
                              (:file "main"))))
   :perform (test-op (o p)
-             (uiop:symbol-call :fiveam :run-all-tests)))
+             (uiop:symbol-call :parsimony/tests :run-parsimony-tests!)))
