@@ -34,4 +34,33 @@
                                           lexer-names)))))))
 
 (defmacro lex (name &rest args)
-  `(eval-parser ,(lexer-parser name) ,@args))
+  `(eval-parser (lexer-parser ,name) ,@args))
+
+
+(defstruct (lexer-stream (:constructor make-lexer-stream-raw))
+  (lexer (error "must refer to lexer") :type lexer)
+  (parser (error "must supply parser") :type parser)
+  (input-stream (error "need an input stream"))
+  (peeks nil :type list))
+
+(defun lexer-stream (l &key (input *default-parse-input*))
+  (declare (type lexer l))
+  (make-lexer-stream-raw :lexer l
+                         :parser (lexer-parser l)
+                         :input-stream input))
+
+(defmethod get-stream ((s lexer-stream))
+  (if (lexer-stream-peeks s)
+      (pop (lexer-stream-peeks s))
+    (eval-parser (lexer-stream-parser s)
+                 :input (lexer-stream-input-stream s))))
+
+(defmethod put-stream (obj (s lexer-stream))
+  (push obj (lexer-stream-peeks s)))
+
+(defmethod peek-stream ((s lexer-stream))
+  (if (lexer-stream-peeks s)
+      (car (lexer-stream-peeks s))
+    (progn
+      (push (get-stream s) (lexer-stream-peeks s))
+      (peek-stream s))))

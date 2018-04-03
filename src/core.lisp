@@ -3,7 +3,6 @@
 (defgeneric get-stream (stream)
   (:documentation "Take an object from a stream. Like gray streams, yields object or :eof"))
 
-;; is this one necessary?
 (defgeneric put-stream (obj stream)
   (:documentation "Replace an object in a stream"))
 
