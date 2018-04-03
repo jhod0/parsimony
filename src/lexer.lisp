@@ -11,31 +11,40 @@
   (intern (concatenate 'string "LEX-" (symbol-name lexer-name) "-" (symbol-name rule-name))
           *package*))
 
-(defmacro deflexer (name &key documentation terminals)
+(defmacro deflexer (name &key documentation whitespace terminals)
   (let* ((terminal-names (mapcar #'(lambda (n) (the keyword (car n)))
                                  terminals))
          (lexer-names (mapcar #'(lambda (term) (make-lexer-name name term))
-                              terminal-names)))
-    `(progn
-       ,@(mapcar #'(lambda (rule)
-                     `(defparser ,(make-lexer-name name (car rule)) ()
-                        ,@(if (cddr rule)
-                              `(,(cadr rule)
-                                (values ,(car rule) (progn ,@(cddr rule))))
-                            (let ((tmp (gensym)))
-                              `(((,tmp ,(cadr rule)))
-                                (values ,(car rule) ,tmp))))))
+                              terminal-names))
+         (parser-core `(alternative
+                         ,@(mapcar (lambda (name) `(,name))
+                                   lexer-names))))
+    `(labels
+       ,(mapcar #'(lambda (rule)
+                    (let ((this-name (make-lexer-name name (car rule))))
+                      `(,this-name ()
+                         (make-parser ',this-name
+                           ,@(if (cddr rule)
+                               `(,(cadr rule)
+                                  (values ,(car rule) (progn ,@(cddr rule))))
+                               (let ((tmp (gensym)))
+                                 `(((,tmp ,(cadr rule)))
+                                   (values ,(car rule) ,tmp))))))))
                  terminals)
        (defconstant ,name
          (make-lexer-struct :name ',name
            :documentation ,documentation
-           :parser (alternative ,@(mapcar #'(lambda (name)
-                                              `(,name))
-                                          lexer-names)))))))
+           :parser
+           ,(if whitespace
+              `(make-parser ',name ((:ignore (parse-many ,whitespace)))
+                 (eval-in-context ,parser-core))
+              parser-core))))))
 
 (defmacro lex (name &rest args)
   `(eval-parser (lexer-parser ,name) ,@args))
 
+(defun get-lexer-parser (lexer)
+  (lexer-parser lexer))
 
 (defstruct (lexer-stream (:constructor make-lexer-stream-raw))
   (lexer (error "must refer to lexer") :type lexer)

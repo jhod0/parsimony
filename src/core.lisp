@@ -64,8 +64,15 @@
   input-stream)
 
 (defstruct (parser (:constructor make-parser-raw))
-  name
+  (name nil)
+  (args nil)
   (function (error "must provide function") :type (function (parse-context parser) t)))
+
+(defmethod print-object ((obj parser) stream)
+  (if (parser-args obj)
+      (format stream "#<PRS:PARSER named: ~a args: ~a>"
+              (parser-name obj) (parser-args obj))
+    (format stream "#<PRS:PARSER named ~a>" (parser-name obj))))
 
 ;; input stream -> context
 (defun new-parse-context (input)
@@ -171,8 +178,15 @@
                             (parse-failure-propogate ,name err))))))))
 
 (defmacro defparser (name args parsers &rest body)
-  `(defun ,name ,args
-     (make-parser ',name ,parsers ,@body)))
+  (let ((tmp (gensym)))
+    `(defun ,name ,args
+       (let ((,tmp (make-parser ',name ,parsers ,@body)))
+         (setf (parser-args ,tmp)
+               (list ,@(remove-if (lambda (arg)
+                                    (or (not (symbolp arg))
+                                        (member arg '(&optional &key &rest))))
+                                  args)))
+         ,tmp))))
 
 (defmacro with-parsed ((&optional input)
                        ((pattern parser &rest args) &rest parses)

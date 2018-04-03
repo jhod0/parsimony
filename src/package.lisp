@@ -20,4 +20,4 @@
 
            :parse-digit :parse-int :parse-float :parse-char :one-of :whitespace
 
-           :deflexer :lexer :lexer-stream))
+           :deflexer :lexer :get-lexer-parser :lexer-stream))
