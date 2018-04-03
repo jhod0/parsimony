@@ -25,15 +25,15 @@
   "Default - if no parser input is specified, will use this")
 
 (define-condition parse-failure (error)
-  ((parser :reader parse-failure-name
+  ((parser :accessor parse-failure-parser
            :type parser
-           :initarg :parser
+           :initarg :parserp
            :initform nil)
-   (problem-input :reader parse-failure-problem
+   (problem-input :accessor parse-failure-problem
                   :type '(or null (cons t null))
                   :initarg :problem-input
                   :initform nil)
-   (cause :reader parse-failure-cause
+   (cause :accessor parse-failure-cause
           :type '(or null parse-failure)
           :initarg :cause
           :initform nil)))
@@ -41,13 +41,17 @@
 (defun parse-failure-propogate (parser failure)
   (declare (type parse-failure failure)
            (type parser parser))
-  (error 'parse-failure :parser parser :cause failure
-         :problem-input (parse-failure-problem failure)))
+  (if (parse-failure-parser failure)
+      (error 'parse-failure :parser parser :cause failure
+             :problem-input (parse-failure-problem failure))
+    (progn
+      (setf (parse-failure-parser failure) parser)
+      (error failure))))
 
 (defun parse-failure-backtrace (failure)
   (declare (type parse-failure failure))
   (labels ((get-trace (pf)
-             (cons (parse-failure-name pf)
+             (cons (parse-failure-parser pf)
                    (when (parse-failure-cause pf)
                      (get-trace (parse-failure-cause pf))))))
     (values (get-trace failure) (parse-failure-problem failure))))
@@ -96,6 +100,7 @@
   (declare (type fixnum id)
            (type parse-context ctxt))
   (labels ((do-unwind (lst)
+             (decf (pc-framecount ctxt))
              (dolist (o (cdar lst))
                (put-stream o (pc-input-stream ctxt)))
              (if (eq (caar lst) id)
@@ -120,18 +125,20 @@
 
 (defun eval-parser (parser
                     &key (input *default-parse-input*)
-                      (raise t) (default :noparse))
-  "Attempts a given parser on an input stream (or existing parser context)"
+                      catch-failure (raise t) (default :noparse))
+  "Appttempts a given parser on an input stream (or existing parser context)"
   (declare (type parser parser)
-           (type boolean raise))
+           (type boolean raise)
+           (type boolean catch-failure))
   (unless (parse-context-p input)
     (setf input (new-parse-context input)))
   (handler-case
-      (funcall (parser-function parser) input parser)
-    (parse-failure (err)
-      (if raise
-          (error err)
-          default))))
+   (funcall (parser-function parser) input parser)
+   (parse-failure (err)
+      (cond
+       (catch-failure err)
+       (raise (error err))
+       (t default)))))
 
 (defmacro parse-loop ((name value &rest parser-args) &rest body)
   (let ((pname (gensym)))
@@ -162,7 +169,7 @@
                        (push-obj c ctxt))
                      c))
                  (fail (bad-input)
-                       (error 'parse-failure :parser self
+                       (error 'parse-failure
                               :problem-input bad-input))
                  (recurse (&key (raise t) (default :noparse))
                     (declare (type boolean raise))
