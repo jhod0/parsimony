@@ -150,3 +150,54 @@
     ("abcd" (:ident "abcd"))
     ("  456 " (:int 456))
     (" 23.123  " (:float 23.123))))
+
+(prs:deflexer small-grammar-lexer
+  :documentation "Lexer for a small grammar"
+  :whitespace (prs:alternative (prs:parse-char #\space)
+                               (prs:parse-char #\newline))
+  :terminals
+  ((:float (prs:parse-float))
+   (:integer (prs:parse-int))
+
+   (:string ((:ignore (prs:parse-char #\"))
+             (str (prs:parse-until (prs:parse-char #\"))))
+            str)
+   (:ident (prs:parse-some (prs:one-of "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")))
+   
+   (:open-brace (prs:parse-char #\[))
+   (:close-brace (prs:parse-char #\]))
+   (:open-paren (prs:parse-char #\())
+   (:close-paren (prs:parse-char #\)))
+   (:comma (prs:parse-char #\,))
+   (:pipe (prs:parse-char #\|))
+   (:colon (prs:parse-char #\:))
+   (:equals (prs:parse-char #\=))))
+
+(prs:defgrammar small-grammar
+  (:description "A grammar for parsing simple objects, with elixir-like syntax")
+  (:lexer small-grammar-lexer)
+  (:rules
+   (:obj
+    (((:integer i)) i)
+    (((:float f)) f)
+    (((:string s)) s)
+    (((:list l)) l))
+
+   (:objs
+    (((:obj o) :comma (:obj os))
+     (cons o os))
+    (((:obj o)) (list o)))
+
+   (:list
+    ((:open-brace :close-brace) nil)
+    ((:open-brace (:objs lst) :close-brace) lst)
+    ((:open-brace (:objs lst) :pipe (:obj last) :close-brace)
+     (labels ((make-dotted (l)
+                (if l
+                    (cons (car l) (make-dotted (cdr l)))
+                  last)))
+       (make-dotted lst))))
+
+   (:symbol
+    ((:colon (:ident id))
+     (intern id)))))
