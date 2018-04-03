@@ -6,6 +6,7 @@
   (name nil :type symbol)
   (terminals nil :type list)
   (nonterminals nil :type list)
+  (lexer (error "needs lexer") :type lexer)
   (default-entry (error "default entry required")
     :type symbol))
 
@@ -15,22 +16,36 @@
           *package*))
 
 (defmacro defgrammar (grammar-name &rest args)
-  (let* ((terminals-arg (cadr (assoc :terminals args)))
-         (default-entry (cadr (assoc :default-entry args)))
-         (rules-arg (cadr (assoc :rules args)))
+  (labels ((get-arg-optional (name &optional default)
+             (cdr (or (assoc name args)
+                       (list default))))
+           (get-arg (name)
+             (let ((a (get-arg-optional name)))
+               (unless a (error (format nil "missing argument to defgrammar: ~a" name)))
+               a)))
+    (let* ((rules-arg (get-arg :rules))
+           (nonterminals (mapcar #'car rules-arg))
+           (lexer-arg (car (get-arg :lexer)))
+           (description (get-arg-optional :description)))
+      (declare (ignorable description))
+      `(progn
+         (let ((known-inputs (append (lexer-terminals ,lexer-arg)
+                                     (list ,@nonterminals))))
+           (dolist (nonterminal ',(mapcar #'cdr rules-arg))
+             (dolist (rule (mapcar #'car nonterminal))
+               (dolist (input rule)
+                 (if (keywordp input)
+                     (assert (member input known-inputs))
+                   (assert (member (car input) known-inputs)))))))
+         ',grammar-name))))
 
-         (terminal-names (mapcar #'car terminals-arg))
-         (known-parsers (append (mapcar #'(lambda (a) (cons (car a) (cadr a)))
-                                        terminals-arg)
-                                (mapcar #'(lambda (rule)
-                                            (cons (car rule) (make-parser-name grammar-name (car rule))))
-                                        rules-arg))))
-    (declare (ignorable terminal-names known-parsers))
-    `(progn
-       ,@(mapcar #'(lambda (rule) (declare (ignore rule)) (error "unimplemented"))
-                 rules-arg)
+#|
+         ,@(mapcar #'(lambda (rule) (declare (ignore rule)) (error "unimplemented"))
+                   rules-arg)
        
        (defconstant ,grammar-name (make-grammar-struct :name ,grammar-name
                 :terminals (list ,@(mapcar #'(lambda (n) `(cons ,(car n) #',(cadr n)))
                                            terminals-arg))
                 :default-entry ,default-entry)))))
+
+|#

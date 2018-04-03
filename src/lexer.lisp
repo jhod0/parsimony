@@ -5,6 +5,7 @@
 (defstruct (lexer (:constructor make-lexer-struct))
   (name (error "name required") :type symbol)
   (parser (error "parser required") :type parser)
+  (terminals (error "lexer needs terminals") :type list)
   (documentation nil :type (or string null)))
 
 (defun make-lexer-name (lexer-name rule-name)
@@ -34,6 +35,7 @@
        (defconstant ,name
          (make-lexer-struct :name ',name
            :documentation ,documentation
+           :terminals (list ,@terminal-names)
            :parser
            ,(if whitespace
                 `(make-parser ',name ((:ignore (parse-many ,whitespace)))
