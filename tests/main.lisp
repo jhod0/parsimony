@@ -45,20 +45,27 @@
 (defmacro check-lexer (parser (input expected) &rest others)
   `(progn
      (with-input-from-string (s ,input)
-       (let ((expected-toks (list ,@(mapcar #'car expected)))
-             (expected-tokvals (list ,@(mapcar #'cadr expected))))
+       (let ((expected-toks (list ,@(loop for tok in expected
+                                          collect (if (keywordp tok)
+                                                      tok
+                                                    (car tok)))))
+             (expected-tokvals (list ,@(loop for tok in expected
+                                             collect (if (keywordp tok)
+                                                         nil
+                                                       `(list ,(cadr tok)))))))
          (prs:parse-loop (s)
                      (((token value) ,parser))
            (let ((exp-tok (pop expected-toks))
                  (exp-tokval (pop expected-tokvals)))
              (is (eq token exp-tok) "expected token ~a, got ~a"
                  exp-tok token)
-             (is (funcall (cond
-                           ((typep value 'string) #'string=)
-                           ((typep value 'number) #'=)
-                           (t #'eq))
-                          value exp-tokval)
-                 "expected value ~a, got ~a" exp-tokval value)))
+             (when exp-tokval
+                 (is (funcall (cond
+                               ((typep value 'string) #'string=)
+                               ((typep value 'number) #'=)
+                               (t #'eq))
+                              value (car exp-tokval))
+                     "expected value ~a, got ~a" exp-tokval value))))
          (is (not expected-toks))
          (is (not expected-tokvals))))
      ,@(when others
@@ -177,9 +184,10 @@ hello there"
 
    (:string ((:ignore (prs:parse-char #\"))
              (str (prs:parse-until (prs:parse-char #\"))))
-            str)
-   (:ident (prs:parse-some (prs:one-of "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")))
-   
+            (coerce str 'string))
+   (:ident ((s (prs:parse-some (prs:one-of "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"))))
+           (coerce s 'string))
+
    (:open-brace (prs:parse-char #\[))
    (:close-brace (prs:parse-char #\]))
    (:open-paren (prs:parse-char #\())
@@ -189,7 +197,24 @@ hello there"
    (:colon (prs:parse-char #\:))
    (:equals (prs:parse-char #\=))))
 
-;(test test-small-lexer
+(test test-small-lexer
+  :description "Test lexer for small grammar to come"
+  (check-lexer (prs:get-lexer-parser small-grammar-lexer)
+    ("[1,2,3,4]"
+     (:open-brace (:integer 1) :comma (:integer 2) :comma (:integer 3) :comma (:integer 4) :close-brace))
+    ("[1|2]"
+     (:open-brace (:integer 1) :pipe (:integer 2) :close-brace))
+    ("[ :hello , 234, there, 5|:a]"
+     (:open-brace :colon
+      (:ident "hello") :comma
+      (:integer 234) :comma
+      (:ident "there") :comma
+      (:integer 5) :pipe :colon
+      (:ident "a") :close-brace))
+    (" \"hey\" : = :     []()"
+     ((:string "hey")
+      :colon :equals :colon
+      :open-brace :close-brace :open-paren :close-paren))))
 
 (prs:defgrammar small-grammar
   :description "A grammar for parsing simple objects, with elixir-like syntax"
