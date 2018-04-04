@@ -121,14 +121,24 @@
     ("198" 198)
     ("432894" 432894)))
 
-(test test-satisfies-even
-  :documentation "Tests the satisfiesp combinator on even numbers"
-  (let ((*cur-parser* (prs:satisfiesp #'evenp (prs:parse-int)))
+(test test-fulfills-even
+  :documentation "Tests the fulfills combinator on even numbers"
+  (let ((*cur-parser* (prs:fulfills #'evenp (prs:parse-int)))
         (*check-function* #'=))
     (for-all ((n (gen-integer :min 0)))
       (if (evenp n)
           (check-result (format nil "~d" n) n)
         (check-fails (format nil "~d" n))))))
+
+(test test-expect-literal
+  :description "Tests searching for a string literal"
+  (check-parse-fails (prs:expect-string "truth")
+    "lies" "falsehoods" "fake news"
+    "tru" "trutb" "tea time")
+  (check-parse-results ((prs:expect-string "truth"))
+    ("truth" "truth")
+    ("truth   " "truth")
+    ("truthaskfjlasdf" "truth")))
 
 (def-suite literal-parser-tests
   :description "Tests parses built directly with make-parser"
@@ -254,5 +264,7 @@ hello there"
   :description "Just make sure it parses ..something.."
   (dolist (a '("[]" "hello" "\"hello\""))
     (with-input-from-string (s a)
-      (format t "~a~%" (prs:parse-grammar small-grammar :input s)))))
+      (prs:parse-grammar small-grammar :input s))))
+
+
 
