@@ -26,11 +26,17 @@
       (values t (eval-in-context parser))
     (parse-failure () (values nil nil))))
 
-(defparser satisfiesp (predicate &optional parser) ()
+(defparser fulfills (predicate &optional parser) ()
   (let ((obj (if parser (eval-in-context parser) (next))))
     (if (funcall predicate obj)
         obj
       (fail obj))))
+
+(defparser while-fulfills (predicate &optional parser) ()
+  (let ((obj (if parser (eval-in-context parser) (next))))
+    (if (funcall predicate obj)
+        (cons obj (recurse))
+      nil)))
 
 (defparser parse-until (parser) ((e parser :raise nil))
   (if (eq e :noparse)
@@ -38,3 +44,10 @@
         (multiple-value-bind (a b) (recurse)
           (values (cons obj a) b)))
       (values nil e)))
+
+(defparser expect-string (str) ()
+  (dotimes (i (length str))
+    (let ((a (next)))
+      (unless (eq (aref str i) a)
+        (fail a))))
+  str)

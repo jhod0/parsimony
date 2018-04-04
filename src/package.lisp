@@ -16,7 +16,9 @@
            :with-parsed
            :eval-in-context
 
-           :alternative :parse-all :parse-some :parse-many :maybe :satisfiesp :parse-until
+           :alternative :parse-all :parse-some :parse-many
+           :maybe :fulfills :while-fulfills :parse-until
+           :expect-string
 
            :parse-digit :parse-int :parse-float :parse-char :one-of :whitespace
 
