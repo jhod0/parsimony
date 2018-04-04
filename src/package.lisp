@@ -12,7 +12,7 @@
 
            :eval-parser
            :parse-loop
-           :make-parser :defparser :next :peek :fail
+           :make-parser :defparser :next :peek :fail :recurse
            :with-parsed
            :eval-in-context
 
@@ -22,4 +22,4 @@
 
            :deflexer :lexer :get-lexer-parser :lexer-stream
 
-           :defgrammar))
+           :defgrammar :get-grammar-parser :parse-grammar))

@@ -42,22 +42,28 @@
                    `(check-fails ,f))
                checks)))
 
-(defmacro check-lexer (parser (input (token value)) &rest others)
+(defmacro check-lexer (parser (input expected) &rest others)
   `(progn
      (with-input-from-string (s ,input)
-       (prs:with-parsed (s)
-                        (((token value) ,parser))
-         (is (eq token ,token) "expected token ~a, got ~a"
-             ,token token)
-         (is (funcall (cond
-                       ((typep value 'string) #'string=)
-                       ((typep value 'number) #'=)
-                       (t #'eq))
-                      value ,value)
-             "expected value ~a, got ~a" ,value value)))
+       (let ((expected-toks (list ,@(mapcar #'car expected)))
+             (expected-tokvals (list ,@(mapcar #'cadr expected))))
+         (prs:parse-loop (s)
+                     (((token value) ,parser))
+           (let ((exp-tok (pop expected-toks))
+                 (exp-tokval (pop expected-tokvals)))
+             (is (eq token exp-tok) "expected token ~a, got ~a"
+                 exp-tok token)
+             (is (funcall (cond
+                           ((typep value 'string) #'string=)
+                           ((typep value 'number) #'=)
+                           (t #'eq))
+                          value exp-tokval)
+                 "expected value ~a, got ~a" exp-tokval value)))
+         (is (not expected-toks))
+         (is (not expected-tokvals))))
      ,@(when others
          `((check-lexer ,parser ,@others)))))
-              
+
 (def-suite numeric-tests
   :description "test small numeric parsers"
   :in core-tests)
@@ -143,13 +149,23 @@
 (test test-dummy-lexer
   :description "Test a simple lexer"
   (check-lexer (prs:get-lexer-parser dummy-lexer)
-    ("23413" (:int 23413))
-    ("23.123" (:float 23.123))
+    ("23413" ((:int 23413)))
+    ("23.123" ((:float 23.123)))
     ("
-" (:newline #\newline))
-    ("abcd" (:ident "abcd"))
-    ("  456 " (:int 456))
-    (" 23.123  " (:float 23.123))))
+" ((:newline #\newline)))
+    ("abcd" ((:ident "abcd")))
+    ("  456 " ((:int 456)))
+    (" 23.123  " ((:float 23.123)))
+    ("abc 234.123 324"
+     ((:ident "abc")
+      (:float 234.123)
+      (:int 324)))
+    ("12 12
+hello there"
+     ((:int 12) (:int 12)
+      (:newline #\newline)
+      (:ident "hello")
+      (:ident "there")))))
 
 (prs:deflexer small-grammar-lexer
   :documentation "Lexer for a small grammar"
@@ -173,31 +189,45 @@
    (:colon (prs:parse-char #\:))
    (:equals (prs:parse-char #\=))))
 
+;(test test-small-lexer
+
 (prs:defgrammar small-grammar
-  (:description "A grammar for parsing simple objects, with elixir-like syntax")
-  (:lexer small-grammar-lexer)
-  (:rules
-   (:obj
-    (((:integer i)) i)
-    (((:float f)) f)
-    (((:string s)) s)
-    (((:list l)) l))
+  :description "A grammar for parsing simple objects, with elixir-like syntax"
+  :lexer small-grammar-lexer
+  :rules ((:obj
+           (((:integer i)) i)
+           (((:float f)) f)
+           (((:string s)) s)
+           (((:ident i)) i)
+           (((:list l)) l))
 
-   (:objs
-    (((:obj o) :comma (:obj os))
-     (cons o os))
-    (((:obj o)) (list o)))
+          (:objs
+           (((:obj o) :comma (:obj os))
+            (cons o os))
+           (((:obj o)) (list o)))
 
-   (:list
-    ((:open-brace :close-brace) nil)
-    ((:open-brace (:objs lst) :close-brace) lst)
-    ((:open-brace (:objs lst) :pipe (:obj last) :close-brace)
-     (labels ((make-dotted (l)
-                (if l
-                    (cons (car l) (make-dotted (cdr l)))
-                  last)))
-       (make-dotted lst))))
+          (:list
+           ((:open-brace :close-brace) nil)
+           ((:open-brace (:objs lst) :close-brace) lst)
+           ((:open-brace (:objs lst) :pipe (:obj last) :close-brace)
+            (labels ((make-dotted (l)
+                                  (if l
+                                      (cons (car l) (make-dotted (cdr l)))
+                                    last)))
+              (make-dotted lst))))
 
-   (:symbol
-    ((:colon (:ident id))
-     (intern id)))))
+          (:symbol
+           ((:colon (:ident id))
+            id))))
+
+(def-suite simple-grammar-tests
+  :in grammar-tests)
+
+(in-suite simple-grammar-tests)
+
+(test test-simple-grammar-mechanics
+  :description "Just make sure it parses ..something.."
+  (dolist (a '("[]" "hello" "\"hello\""))
+    (with-input-from-string (s a)
+      (format t "~a~%" (prs:parse-grammar small-grammar :input s)))))
+
