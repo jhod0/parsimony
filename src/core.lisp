@@ -140,14 +140,13 @@
        (raise (error err))
        (t default)))))
 
-(defmacro parse-loop ((name value &rest parser-args) &rest body)
-  (let ((pname (gensym)))
-    `(handler-case
-      (let ((,pname ,value))
-        (loop do
-              (with-parsed nil ((,name ,pname ,@parser-args))
-                           ,@body)))
-      (parse-failure (e) (values)))))
+(defmacro parse-loop ((&optional context) parsers &rest body)
+  `(handler-case
+    (loop do
+          (with-parsed ,(when context (list context))
+                       ,parsers
+                       ,@body))
+    (parse-failure () (values))))
 
 (defmacro make-parser (name parsers &rest body)
   "Macro which constructs a parser, with the given name, which will conduct the action given in BODY"

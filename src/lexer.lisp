@@ -20,28 +20,29 @@
          (parser-core `(alternative
                         ,@(mapcar #'(lambda (name) `(,name))
                                   lexer-names))))
-    `(labels
-         ,(mapcar #'(lambda (rule)
-                      (let ((this-name (make-lexer-name name (car rule))))
-                        `(,this-name ()
-                           (make-parser ',this-name
-                             ,@(if (cddr rule)
-                                   `(,(cadr rule)
-                                     (values ,(car rule) (progn ,@(cddr rule))))
-                                 (let ((tmp (gensym)))
-                                   `(((,tmp ,(cadr rule)))
-                                     (values ,(car rule) ,tmp))))))))
-                terminals)
-       (defconstant ,name
-         (make-lexer-struct :name ',name
-           :documentation ,documentation
-           :terminals (list ,@terminal-names)
-           :parser
-           ,(if whitespace
-                `(make-parser ',name ((:ignore (parse-many ,whitespace)))
-                    (eval-in-context
-                    ,parser-core))
-              parser-core))))))
+    `(eval-when (:compile-toplevel :load-toplevel)
+       (labels
+           ,(mapcar #'(lambda (rule)
+                        (let ((this-name (make-lexer-name name (car rule))))
+                          `(,this-name ()
+                             (make-parser ',this-name
+                               ,@(if (cddr rule)
+                                     `(,(cadr rule)
+                                       (values ,(car rule) (progn ,@(cddr rule))))
+                                   (let ((tmp (gensym)))
+                                     `(((,tmp ,(cadr rule)))
+                                       (values ,(car rule) ,tmp))))))))
+                    terminals)
+         (defparameter ,name
+           (make-lexer-struct :name ',name
+             :documentation ,documentation
+             :terminals (list ,@terminal-names)
+             :parser
+             ,(if whitespace
+                  `(make-parser ',name ((:ignore (parse-many ,whitespace)))
+                     (eval-in-context
+                      ,parser-core))
+                parser-core)))))))
 
 (defmacro lex (name &rest args)
   `(eval-parser (lexer-parser ,name) ,@args))
