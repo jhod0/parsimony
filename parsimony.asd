@@ -17,6 +17,7 @@
   :components ((:module "tests"
                 :serial t
                 :components ((:file "package")
+                             (:file "grammars")
                              (:file "main"))))
   :perform (test-op (o p)
              (uiop:symbol-call :parsimony/tests :run-parsimony-tests!)))

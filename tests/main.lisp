@@ -146,22 +146,10 @@
 
 (in-suite literal-parser-tests)
 
-
 (def-suite simple-lexer-tests
   :in grammar-tests)
 
 (in-suite simple-lexer-tests)
-
-(prs:deflexer dummy-lexer
-  :documentation "Test a dummy lexer"
-  :whitespace (prs:parse-char #\space)
-  :terminals
-  ((:float (prs:parse-float))
-   (:int (prs:parse-int))
-   (:newline (prs:parse-char #\newline))
-   (:ident ((name
-             (prs:parse-some (prs:one-of "abcdefghijklmnopqrstuvwxyz"))))
-           (coerce name 'string))))
 
 (test test-dummy-lexer
   :description "Test a simple lexer"
@@ -184,29 +172,6 @@ hello there"
       (:ident "hello")
       (:ident "there")))))
 
-(prs:deflexer small-grammar-lexer
-  :documentation "Lexer for a small grammar"
-  :whitespace (prs:alternative (prs:parse-char #\space)
-                               (prs:parse-char #\newline))
-  :terminals
-  ((:float (prs:parse-float))
-   (:integer (prs:parse-int))
-
-   (:string ((:ignore (prs:parse-char #\"))
-             (str (prs:parse-until (prs:parse-char #\"))))
-            (coerce str 'string))
-   (:ident ((s (prs:parse-some (prs:one-of "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"))))
-           (coerce s 'string))
-
-   (:open-brace (prs:parse-char #\[))
-   (:close-brace (prs:parse-char #\]))
-   (:open-paren (prs:parse-char #\())
-   (:close-paren (prs:parse-char #\)))
-   (:comma (prs:parse-char #\,))
-   (:pipe (prs:parse-char #\|))
-   (:colon (prs:parse-char #\:))
-   (:equals (prs:parse-char #\=))))
-
 (test test-small-lexer
   :description "Test lexer for small grammar to come"
   (check-lexer (prs:get-lexer-parser small-grammar-lexer)
@@ -226,34 +191,13 @@ hello there"
       :colon :equals :colon
       :open-brace :close-brace :open-paren :close-paren))))
 
-(prs:defgrammar small-grammar
-  :description "A grammar for parsing simple objects, with elixir-like syntax"
-  :lexer small-grammar-lexer
-  :rules ((:obj
-           (((:integer i)) i)
-           (((:float f)) f)
-           (((:string s)) s)
-           (((:ident i)) i)
-           (((:list l)) l))
+(test test-pascal-lexer
+  (check-lexer (prs:get-lexer-parser small-pascal-lexer)
+    ("type smallstring = packed array[1..20] of char;"
+     (:type (:ident "smallstring") :equals :packed
+            :array :open-brace (:integer 1) :range-dots
+            (:integer 20) :close-brace :of (:ident "char") :semicolon))))
 
-          (:objs
-           (((:obj o) :comma (:obj os))
-            (cons o os))
-           (((:obj o)) (list o)))
-
-          (:list
-           ((:open-brace :close-brace) nil)
-           ((:open-brace (:objs lst) :close-brace) lst)
-           ((:open-brace (:objs lst) :pipe (:obj last) :close-brace)
-            (labels ((make-dotted (l)
-                                  (if l
-                                      (cons (car l) (make-dotted (cdr l)))
-                                    last)))
-              (make-dotted lst))))
-
-          (:symbol
-           ((:colon (:ident id))
-            id))))
 
 (def-suite simple-grammar-tests
   :in grammar-tests)
@@ -265,6 +209,3 @@ hello there"
   (dolist (a '("[]" "hello" "\"hello\""))
     (with-input-from-string (s a)
       (prs:parse-grammar small-grammar :input s))))
-
-
-
