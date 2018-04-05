@@ -41,9 +41,10 @@
 (defun parse-failure-backtrace (failure)
   (declare (type parse-failure failure))
   (labels ((get-trace (pf)
-             (cons (parse-failure-parser pf)
-                   (when (parse-failure-cause pf)
-                     (get-trace (parse-failure-cause pf))))))
+             (with-slots (parser cause) pf
+               (cons parser
+                     (when cause
+                       (get-trace cause))))))
     (values (get-trace failure) (parse-failure-problem failure))))
 
 
@@ -131,7 +132,7 @@
 
 ;; ======== Parser evaluation ========
 
-(defun eval-parser (parser
+(defun %do-eval-parser (parser
                     &key (input *default-parse-input*)
                       catch-failure (raise t) (default :noparse))
   "Appttempts a given parser on an input stream (or existing parser context)"
@@ -147,6 +148,19 @@
        (catch-failure err)
        (raise (error err))
        (t default)))))
+
+(defun eval-parser (parser
+                    &key (input *default-parse-input*)
+                      catch-failure (raise t) (default :noparse))
+  (handler-case
+      (%do-eval-parser parser
+                       :input input :catch-failure catch-failure
+                       :raise raise :default default)
+    (parse-failure (err)
+      (restart-case
+          (error err)
+        (print-parser-backtrace ()
+          (format t "~a~%" (parse-failure-backtrace err)))))))
 
 (defmacro parse-loop ((&optional context) parsers &rest body)
   `(handler-case
@@ -222,7 +236,7 @@ Example:
                       (,@parses)
                       ,@forms))
              forms))
-        (parse `(eval-parser ,parser ,@(when input `(:input ,input))
+        (parse `(%do-eval-parser ,parser ,@(when input `(:input ,input))
                              ,@args)))
     (cond
       ((eq pattern :ignore)
@@ -234,4 +248,4 @@ Example:
             ,@continuation)))))
 
 (defmacro eval-in-context (parser &rest args)
-  `(eval-parser ,parser :input ctxt ,@args))
+  `(%do-eval-parser ,parser :input ctxt ,@args))
