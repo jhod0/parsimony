@@ -1,24 +1,14 @@
 (in-package :parsimony)
 
-(defgeneric get-stream (stream)
+(defgeneric get-stream (stream ctxt)
   (:documentation "Take an object from a stream. Like gray streams, yields object or :eof"))
 
 (defgeneric put-stream (obj stream)
   (:documentation "Replace an object in a stream"))
 
-(defgeneric peek-stream (stream)
-  (:documentation "Yields an object, withoug moving the stream forward."))
+(defgeneric peek-stream (stream ctxt)
+  (:documentation "Yields an object, without moving the stream forward."))
 
-
-
-(defmethod get-stream ((s stream))
-  (read-char s nil :eof))
-
-(defmethod put-stream (obj (s stream))
-  (unread-char obj s))
-
-(defmethod peek-stream ((s stream))
-  (peek-char nil s nil :eof))
 
 
 (defparameter *default-parse-input* *standard-input*
@@ -120,6 +110,24 @@
   (pop (cadr (pc-stacks ctxt))))
 
 
+;; === Define methods for basic streams ===
+
+(defmethod get-stream ((s stream) (ctxt null))
+  (declare (ignore ctxt))
+  (read-char s nil :eof))
+
+(defmethod get-stream ((s stream) (ctxt parse-context))
+  (let ((c (read-char s nil :eof)))
+    (unless (eq c :eof)
+      (push-obj c ctxt)
+      c)))
+
+(defmethod put-stream (obj (s stream))
+  (unread-char obj s))
+
+(defmethod peek-stream ((s stream) ctxt)
+  (peek-char nil s nil :eof))
+
 
 ;; ======== Parser evaluation ========
 
@@ -162,12 +170,8 @@
               (input (pc-input-stream ctxt)))
           ;; Create helper functions which may be used in
           ;; the body
-          (flet ((peek () (peek-stream input))
-                 (next ()
-                   (let ((c (get-stream input)))
-                     (unless (eq c :eof)
-                       (push-obj c ctxt))
-                     c))
+          (flet ((peek () (peek-stream input ctxt))
+                 (next () (get-stream input ctxt))
                  (fail (bad-input)
                        (error 'parse-failure
                               :problem-input bad-input))

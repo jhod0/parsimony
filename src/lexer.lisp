@@ -62,7 +62,8 @@
                          :parser (lexer-parser l)
                          :input-stream input))
 
-(defmethod get-stream ((s lexer-stream))
+(defmethod get-stream ((s lexer-stream) (ctxt null))
+  (declare (ignore ctxt))
   (with-slots (peeks input-stream parser) s
     (if peeks
         (let ((top (pop peeks)))
@@ -71,13 +72,18 @@
                    (((tok val) parser))
                    (values tok val)))))
 
+(defmethod get-stream ((s lexer-stream) (ctxt parse-context))
+  (multiple-value-bind (tok val) (get-stream s nil)
+    (push-obj (cons tok val) ctxt)
+    (values tok val)))
+
 (defmethod put-stream (obj (s lexer-stream))
   (push obj (lexer-stream-peeks s)))
 
-(defmethod peek-stream ((s lexer-stream))
+(defmethod peek-stream ((s lexer-stream) ctxt)
   (with-slots (peeks) s
     (if peeks
         (values (caar peeks) (cdar peeks))
-      (multiple-value-bind (tok val) (get-stream s)
+      (multiple-value-bind (tok val) (get-stream s ctxt)
         (push (cons tok val) peeks)
         (values tok val)))))
