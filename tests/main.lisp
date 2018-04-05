@@ -69,7 +69,29 @@
          (is (not expected-toks))
          (is (not expected-tokvals))))
      ,@(when others
-         `((check-lexer ,parser ,@others)))))
+             `((check-lexer ,parser ,@others)))))
+
+(defun full-eq (a b)
+  (cond
+    ((symbolp a) (eq a b))
+    ((stringp a) (string= a b))
+    ((numberp a) (= a b))
+    ((consp a) (and (full-eq (car a) (car b))
+                    (full-eq (cdr a) (cdr b))))
+    (t (error "don't know how to compare ~a and ~a" a b))))
+
+(defmacro check-grammar (grammar (input expected &key target) &rest others)
+  (let ((input-name (gensym))
+        (res (gensym)))
+      `(progn
+         (with-input-from-string (,input-name ,input)
+           (let ((,res (prs:parse-grammar ,grammar
+                                          ,@(when target (list :target target))
+                                          :input ,input-name)))
+             (is (full-eq ,res ,expected)
+                 "expected ~a, received ~a" ,expected ,res)))
+         ,@(when others
+                 (list `(check-grammar ,grammar ,@others))))))
 
 (def-suite numeric-tests
   :description "test small numeric parsers"
@@ -196,7 +218,15 @@ hello there"
     ("type smallstring = packed array[1..20] of char;"
      (:type (:ident "smallstring") :equals :packed
             :array :open-brace (:integer 1) :range-dots
-            (:integer 20) :close-brace :of (:ident "char") :semicolon))))
+            (:integer 20) :close-brace :of (:ident "char") :semicolon))
+    ("record a, b ,c : sometype ;
+             other: packed array[1..30] of char;
+end"
+     (:record (:ident "a") :comma (:ident "b") :comma (:ident "c")
+              :colon (:ident "sometype") :semicolon
+              (:ident "other") :colon :packed :array
+              :open-brace (:integer 1) :range-dots (:integer 30) :close-brace
+              :of (:ident "char") :semicolon :end))))
 
 
 (def-suite simple-grammar-tests
@@ -204,8 +234,26 @@ hello there"
 
 (in-suite simple-grammar-tests)
 
+
 (test test-simple-grammar-mechanics
   :description "Just make sure it parses ..something.."
   (dolist (a '("[]" "hello" "\"hello\""))
     (with-input-from-string (s a)
       (prs:parse-grammar small-grammar :input s))))
+
+(test test-simple-grammar
+  :description "Test the simple grammar"
+  (check-grammar small-grammar
+    ("32" 32)
+    ("123.0" 123.0)
+    ("hello" "hello")
+    ("\"hello\"" "hello")
+    ("[]" nil)
+    ("[ 1,2, 3, 4 ,5]" '(1 2 3 4 5))
+    ("[1|2]" '(1 . 2))
+    (":hello" '(:symbol "hello"))
+    ("[:hi, :there, 1, 2, [], 453, [:a|:b]|artichoke]"
+     '((:symbol "hi") (:symbol "there") 1 2 () 453 ((:symbol "a") . (:symbol "b")) . "artichoke"))))
+
+(test test-pascal-grammar
+  :description "Tests the simplified pascal grammar")

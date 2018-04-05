@@ -38,20 +38,20 @@
 (prs:defgrammar small-grammar
   :description "A grammar for parsing simple objects, with elixir-like syntax"
   :lexer small-grammar-lexer
-  :rules ((:obj
-           (((:integer i)) i)
-           (((:float f)) f)
-           (((:string s)) s)
-           (((:ident i)) i)
-           (((:list l)) l))
+  :rules (
+          ;; An obj is either an integer, float, string, ident, or list
+          (:obj :integer :float :string :ident :list :symbol)
 
+          ;; objs - list of obj separated by commas
           (:objs
-           (((:obj o) :comma (:obj os))
+           (((:obj o) :comma (:objs os))
             (cons o os))
-           (((:obj o)) (list o)))
+           (((:obj o))
+            (list o))
+           (() nil))
 
+          ;; List - list of obj, enclosed in [], comma-separated
           (:list
-           ((:open-brace :close-brace) nil)
            ((:open-brace (:objs lst) :close-brace) lst)
            ((:open-brace (:objs lst) :pipe (:obj last) :close-brace)
             (labels ((make-dotted (l)
@@ -60,9 +60,10 @@
                                     last)))
               (make-dotted lst))))
 
+          ;; Symbol - like Lisp keywords, a colon followed by an identifier
           (:symbol
            ((:colon (:ident id))
-            id))))
+            (list :symbol id)))))
 
 
 #|
@@ -104,10 +105,11 @@ http://www.cs.utsa.edu/~wagner/CS3723/grammar/examples2.html
    (:close-paren (prs:parse-char #\)))))
 
 (prs:defgrammar small-pascal
-;  :documentation "Subset of Pascal"
   :lexer small-pascal-lexer
   :rules
-  ((:vardecl
+  ((:toplevel :vardecl :typedecl)
+
+   (:vardecl
     ((:var (:vardecllist lst) :semicolon)
      (cons :vars lst)))
 
@@ -118,14 +120,8 @@ http://www.cs.utsa.edu/~wagner/CS3723/grammar/examples2.html
      (list vt)))
 
    (:varandtype
-    (((:varnames names) :colon (:typespec ty))
+    (((:idlist names) :colon (:typespec ty))
      (list :var :idents names :type ty)))
-
-   (:varnames
-    (((:ident i) (:varnames is))
-     (cons i is))
-    (((:ident i))
-     (list i)))
 
    (:typedecl
     ((:type (:typedeflist lst)) lst))
@@ -137,7 +133,7 @@ http://www.cs.utsa.edu/~wagner/CS3723/grammar/examples2.html
      (list def)))
 
    (:typedef
-    (((:typeid id) :equals (:typespec spec) :colon)
+    (((:typeid id) :equals (:typespec spec) :semicolon)
      (list :typedef id spec)))
 
    (:typespec :typeid :arraydef :ptrdef :rangedef :enumdef :recdef)
@@ -151,7 +147,7 @@ http://www.cs.utsa.edu/~wagner/CS3723/grammar/examples2.html
      (list :arraydef :packed nil :range rd :of id)))
 
    (:ptrdef
-    ((:carrot (:typeid id)) id))
+    ((:carrot (:typeid id)) (list :ptr id)))
 
    (:rangedef
     (((:integer start) :range-dots (:integer end))
@@ -160,8 +156,9 @@ http://www.cs.utsa.edu/~wagner/CS3723/grammar/examples2.html
    (:enumdef
     ((:open-paren (:idlist lst) :close-paren)
      (cons :enum lst)))
+
    (:idlist
-    (((:ident id) (:idlist rst))
+    (((:ident id) :comma (:idlist rst))
      (cons id rst))
     (((:ident id))
      (list id)))
