@@ -45,8 +45,8 @@
                    (when (parse-failure-cause pf)
                      (get-trace (parse-failure-cause pf))))))
     (values (get-trace failure) (parse-failure-problem failure))))
-                       
-                      
+
+
 
 (defmacro with-parse-input ((stream) &rest body)
   `(let ((*default-parse-input* ,stream))
@@ -232,6 +232,6 @@ Example:
            ,@continuation))
       (t `(multiple-value-bind ,pattern ,parse
             ,@continuation)))))
-  
+
 (defmacro eval-in-context (parser &rest args)
   `(eval-parser ,parser :input ctxt ,@args))
