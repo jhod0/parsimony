@@ -16,44 +16,56 @@
             "PARSE-" (symbol-name grammar-name) "-" (symbol-name rule-name))
           (symbol-package grammar-name)))
 
+(defun create-grammar-parser-rule (rule body parser-names)
+  (let ((this-clause (when rule (car rule)))
+        (rest-clauses (when rule (cdr rule))))
+    (cond
+     ((not rule)
+      `(progn ,@body))
+     ((and (keywordp this-clause)
+           (assoc this-clause parser-names))
+      `(with-parsed (ctxt)
+                    ((:ignore (,(cdr (assoc this-clause parser-names)))))
+                    ,(create-grammar-parser-rule rest-clauses body
+                                                 parser-names)))
+
+     ((keywordp this-clause)
+      (let ((a (gensym)))
+        `(let ((,a (next)))
+           (unless (eq ,a ,this-clause)
+             (fail ,a))
+           ,(create-grammar-parser-rule rest-clauses body
+                                        parser-names))))
+
+     ((and (consp this-clause)
+           (assoc (car this-clause) parser-names))
+      `(with-parsed (ctxt)
+                    ((,(cadr this-clause) (,(cdr (assoc (car this-clause) parser-names)))))
+                    ,(create-grammar-parser-rule rest-clauses body
+                                                 parser-names)))
+
+     ((consp this-clause)
+      (let ((a (gensym)))
+        `(multiple-value-bind (,a ,(cadr this-clause)) (next)
+           (unless (eq ,a ,(car this-clause))
+             (fail ,a))
+           ,(create-grammar-parser-rule rest-clauses body
+                                        parser-names))))
+
+     (t (error "invalid grammar rule ~a (~a ~a)" rule rest-clauses body)))))
+
+
 (defun create-grammar-parser (fnname args rules parser-names)
-  (labels ((process-rule (rule body)
-             (if (not rule)
-                 `(progn ,@body)
-               (let ((this-clause (car rule))
-                     (rest-clauses (cdr rule)))
-                 (cond
-                  ((and (keywordp this-clause)
-                        (assoc this-clause parser-names))
-                   `(with-parsed (ctxt)
-                                 ((:ignore (,(cdr (assoc this-clause parser-names)))))
-                                 ,(process-rule rest-clauses body)))
-
-                  ((keywordp this-clause)
-                   (let ((a (gensym)))
-                     `(let ((,a (next)))
-                        (unless (eq ,a ,this-clause)
-                          (fail ,a))
-                        ,(process-rule rest-clauses body))))
-
-                  ((and (consp this-clause)
-                        (assoc (car this-clause) parser-names))
-                   `(with-parsed (ctxt)
-                                 ((,(cadr this-clause) (,(cdr (assoc (car this-clause) parser-names)))))
-                                 ,(process-rule rest-clauses body)))
-
-                  ((consp this-clause)
-                   (let ((a (gensym)))
-                     `(multiple-value-bind (,a ,(cadr this-clause)) (next)
-                        (unless (eq ,a ,(car this-clause))
-                          (fail ,a))
-                        ,(process-rule rest-clauses body))))
-                  (t (error "invalid grammar rule")))))))
-    `(defun ,fnname ,args
-       (alternative
-        ,@(loop for rule in rules
-                collect `(make-parser ',(gensym (concatenate 'string (symbol-name fnname) "-RULE")) ()
-                           ,(process-rule (car rule) (cdr rule))))))))
+  `(defun ,fnname ,args
+     (alternative
+      ,@(loop for rule in rules
+              collect
+              `(make-parser ',(gensym (concatenate 'string (symbol-name fnname) "-RULE")) ()
+                            ,(progn
+                               (when (keywordp rule)
+                                 (let ((a (gensym)))
+                                   (setf rule `(((,rule ,a)) ,a))))
+                               (create-grammar-parser-rule (car rule) (cdr rule) parser-names)))))))
 
 (defmacro defgrammar (grammar-name &key rules lexer default-entry description)
   (declare (ignorable description))
@@ -64,14 +76,20 @@
          (new-parser-names (mapcar #'(lambda (nt) (cons nt (make-parser-name grammar-name nt)))
                                    nonterminals)))
     `(eval-when (:compile-toplevel :load-toplevel)
+
+       ;; verify terminals and non-terminals
        (let ((known-inputs (append (lexer-terminals ,lexer)
                                    (list ,@nonterminals))))
          (dolist (nonterminal ',(mapcar #'cdr rules))
-           (dolist (rule (mapcar #'car nonterminal))
+           (dolist (rule nonterminal)
+             (if (keywordp rule)
+                 (setf rule (list rule))
+               (setf rule (car rule)))
              (dolist (input rule)
                (if (keywordp input)
                    (assert (member input known-inputs))
                  (assert (member (car input) known-inputs)))))))
+
        ,@(loop for nt in nonterminals
                collect (create-grammar-parser
                         (cdr (assoc nt new-parser-names)) nil
