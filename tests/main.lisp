@@ -22,7 +22,7 @@
   (with-input-from-string (s input)
     (let ((val (prs:eval-parser *cur-parser* :input s)))
       (is (funcall eq val result)
-          "Expected ~a, parsed ~a" result val))))
+          "Expected ~s, parsed ~s" result val))))
 
 (defun check-fails (input)
   (with-input-from-string (s input)
@@ -157,7 +157,7 @@
   (check-parse-fails (prs:expect-string "truth")
     "lies" "falsehoods" "fake news"
     "tru" "trutb" "tea time")
-  (check-parse-results ((prs:expect-string "truth"))
+  (check-parse-results ((prs:expect-string "truth") #'string=)
     ("truth" "truth")
     ("truth   " "truth")
     ("truthaskfjlasdf" "truth")))

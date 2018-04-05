@@ -17,7 +17,7 @@
 (define-condition parse-failure (error)
   ((parser :accessor parse-failure-parser
            :type parser
-           :initarg :parserp
+           :initarg :parser
            :initform nil)
    (problem-input :accessor parse-failure-problem
                   :type '(or null (cons t null))
