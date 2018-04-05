@@ -156,7 +156,8 @@
                 (error "Parser name not a symbol: ~a" ,name))
       :function
       (lambda (ctxt self)
-        (declare (type parse-context ctxt))
+        (declare (type parse-context ctxt)
+                 (type parser self))
         (let ((cur-frame (new-parser-frame ctxt))
               (input (pc-input-stream ctxt)))
           ;; Create helper functions which may be used in
@@ -177,12 +178,12 @@
 
             ;; Actually execute the parser
             (handler-case
- 
+
              ,(if parsers
                   `(with-parsed (ctxt) ,parsers
                                 ,@body)
                 `(progn ,@body))
-             
+
              ;; Clean up
              (parse-failure (err)
                             (unwind-until cur-frame ctxt)

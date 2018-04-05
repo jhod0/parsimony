@@ -63,17 +63,21 @@
                          :input-stream input))
 
 (defmethod get-stream ((s lexer-stream))
-  (if (lexer-stream-peeks s)
-      (pop (lexer-stream-peeks s))
-    (eval-parser (lexer-stream-parser s)
-                 :input (lexer-stream-input-stream s))))
+  (with-slots (peeks input-stream parser) s
+    (if peeks
+        (let ((top (pop peeks)))
+          (values (car top) (cdr top)))
+      (with-parsed (input-stream)
+                   (((tok val) parser))
+                   (values tok val)))))
 
 (defmethod put-stream (obj (s lexer-stream))
   (push obj (lexer-stream-peeks s)))
 
 (defmethod peek-stream ((s lexer-stream))
-  (if (lexer-stream-peeks s)
-      (car (lexer-stream-peeks s))
-    (progn
-      (push (get-stream s) (lexer-stream-peeks s))
-      (peek-stream s))))
+  (with-slots (peeks) s
+    (if peeks
+        (values (caar peeks) (cdar peeks))
+      (multiple-value-bind (tok val) (get-stream s)
+        (push (cons tok val) peeks)
+        (values tok val)))))
