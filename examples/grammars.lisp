@@ -124,7 +124,7 @@ http://www.cs.utsa.edu/~wagner/CS3723/grammar/examples2.html
      (list :var :idents names :type ty)))
 
    (:typedecl
-    ((:type (:typedeflist lst)) lst))
+    ((:type (:typedeflist lst)) (cons :typedefs lst)))
 
    (:typedeflist
     (((:typedef def) (:typedeflist lst))
@@ -164,5 +164,57 @@ http://www.cs.utsa.edu/~wagner/CS3723/grammar/examples2.html
      (list id)))
 
    (:recdef
-    ((:record (:vardecllist vars) :end :semicolon)
-     (cons :record vars)))))
+    ((:record (:vardecllist vars) :end)
+     (cons :recdef vars)))))
+
+
+(prs:deflexer json-lexer
+  :documentation "Lexer for simplified JSON input (no string escapes)"
+  :whitespace (prs:alternative (prs:parse-char #\space)
+                               (prs:parse-char #\newline))
+  :terminals
+  ((:jsonint (prs:parse-int))
+
+   (:jsonstring
+    ((:ignore (prs:parse-char #\"))
+     (str (prs:while-fulfills (lambda (c) (not (eq c #\")))))
+     (:ignore (prs:parse-char #\")))
+    (coerce 'string str))
+
+   (:null (prs:expect-string "null"))
+
+   (:open-curly (prs:parse-char #\{))
+   (:close-curly (prs:parse-char #\}))
+   (:open-brace (prs:parse-char #\[))
+   (:close-brace (prs:parse-char #\]))
+   (:colon (prs:parse-char #\:))
+   (:comma (prs:parse-char #\,))))
+
+(prs:defgrammar json-parser
+    :description "Parses a subset of JSON"
+    :lexer json-lexer
+    :rules
+    ((:jsonobj :jsondict :jsonlist :jsonlit)
+
+     (:jsondict
+      ((:open-curly (:dict-innards di) :close-curly)
+       di)
+      ((:open-curly :close-curly) nil))
+
+     (:jsonlist
+      ((:open-brace (:jsonobjs jo) :close-brace)
+       jo))
+
+     (:dict-innards
+      (((:jsonstring s) :colon (:jsonobj obj) :comma (:dict-innards rest))
+       (cons (cons s obj) rest))
+      (((:jsonstring s) :colon (:jsonobj obj))
+       (list (cons s obj))
+       ))
+
+     (:jsonobjs
+      (((:jsonobj obj) :comma (:jsonobjs objs))
+       (cons obj objs))
+      (() nil))
+
+     (:jsonlit :jsonstring :jsonint :null)))

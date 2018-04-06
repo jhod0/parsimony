@@ -89,7 +89,7 @@
                                           ,@(when target (list :target target))
                                           :input ,input-name)))
              (is (full-eq ,res ,expected)
-                 "expected ~a, received ~a" ,expected ,res)))
+                 "expected ~s, received ~s" ,expected ,res)))
          ,@(when others
                  (list `(check-grammar ,grammar ,@others))))))
 
@@ -228,6 +228,11 @@ end"
               :open-brace (:integer 1) :range-dots (:integer 30) :close-brace
               :of (:ident "char") :semicolon :end))))
 
+(test test-json-lexer
+  (check-lexer (prs:get-lexer-parser prs/e:json-lexer)
+    ("[]" (:open-brace :close-brace))
+    ("{{234 ,:" (:open-curly :open-curly (:jsonint 234) :comma :colon))))
+
 
 (def-suite simple-grammar-tests
   :in grammar-tests)
@@ -261,5 +266,34 @@ end"
     ("var a, b, c: atype;
           d, e, f : anothertype ;"
      '(:vars (:var :idents ("a" "b" "c") :type "atype")
-             (:var :idents ("d" "e" "f") :type "anothertype")))
+       (:var :idents ("d" "e" "f") :type "anothertype")))
+
+    ("var a, b : array[1..30] of character;
+          anothervar ,blah : ^ integer;"
+     '(:vars
+       (:var :idents ("a" "b")
+        :type (:arraydef :packed nil :range (:range 1 30) :of "character"))
+       (:var :idents ("anothervar" "blah")
+        :type (:ptr "integer"))))
+
+    ("var a : 1..100 ; b: (some, enum ,terms );"
+     '(:vars
+       (:var :idents ("a")
+        :type (:range 1 100))
+       (:var :idents ("b")
+        :type (:enum "some" "enum" "terms"))))
+
+    ("type intalias = integer ; intptr = ^intalias;"
+     '(:typedefs
+       (:typedef "intalias" "integer")
+       (:typedef "intptr" (:ptr "intalias"))))
+
+    ("type linkedlist = record value : integer ;
+                               next : ^linkedlist
+                        end ;"
+     '(:typedefs
+       (:typedef "linkedlist"
+        (:recdef
+         (:var :idents ("value") :type "integer")
+         (:var :idents ("next") :type (:ptr "linkedlist"))))))
     ))
