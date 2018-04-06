@@ -67,7 +67,7 @@
                                    (setf rule `(((,rule ,a)) ,a))))
                                (create-grammar-parser-rule (car rule) (cdr rule) parser-names)))))))
 
-(defmacro defgrammar (grammar-name &key rules lexer default-entry description)
+(defmacro defgrammar (grammar-name &key rules lexer extra-args default-entry description)
   (declare (ignorable description))
   (unless rules (error "no rules given to grammar"))
   (unless lexer (error "no lexer given to grammar"))
@@ -92,7 +92,7 @@
 
        ,@(loop for nt in nonterminals
                collect (create-grammar-parser
-                        (cdr (assoc nt new-parser-names)) nil
+                        (cdr (assoc nt new-parser-names)) extra-args
                         (cdr (assoc nt rules)) new-parser-names))
        (defparameter ,grammar-name
          (make-grammar-struct
