@@ -11,13 +11,20 @@
                                     :depends-on ("core" "combinators" "util-parsers" "lexer")))))
   :in-order-to ((test-op (test-op :parsimony/tests))))
 
+(defsystem parsimony/examples
+  :description "Parsimony examples"
+  :depends-on (:parsimony)
+  :components ((:module "examples"
+                :serial t
+                :components ((:file "package")
+                             (:file "grammars")))))
+
 (defsystem parsimony/tests
   :description "Test suite"
-  :depends-on (:parsimony :FiveAM)
+  :depends-on (:parsimony/examples :FiveAM)
   :components ((:module "tests"
                 :serial t
                 :components ((:file "package")
-                             (:file "grammars")
                              (:file "main"))))
   :perform (test-op (o p)
              (uiop:symbol-call :parsimony/tests :run-parsimony-tests!)))

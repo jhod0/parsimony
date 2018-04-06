@@ -175,7 +175,7 @@
 
 (test test-dummy-lexer
   :description "Test a simple lexer"
-  (check-lexer (prs:get-lexer-parser dummy-lexer)
+  (check-lexer (prs:get-lexer-parser prs/e:dummy-lexer)
     ("23413" ((:int 23413)))
     ("23.123" ((:float 23.123)))
     ("
@@ -196,7 +196,7 @@ hello there"
 
 (test test-small-lexer
   :description "Test lexer for small grammar to come"
-  (check-lexer (prs:get-lexer-parser small-grammar-lexer)
+  (check-lexer (prs:get-lexer-parser prs/e:small-grammar-lexer)
     ("[1,2,3,4]"
      (:open-brace (:integer 1) :comma (:integer 2) :comma (:integer 3) :comma (:integer 4) :close-brace))
     ("[1|2]"
@@ -214,7 +214,7 @@ hello there"
       :open-brace :close-brace :open-paren :close-paren))))
 
 (test test-pascal-lexer
-  (check-lexer (prs:get-lexer-parser small-pascal-lexer)
+  (check-lexer (prs:get-lexer-parser prs/e:small-pascal-lexer)
     ("type smallstring = packed array[1..20] of char;"
      (:type (:ident "smallstring") :equals :packed
             :array :open-brace (:integer 1) :range-dots
@@ -239,11 +239,11 @@ end"
   :description "Just make sure it parses ..something.."
   (dolist (a '("[]" "hello" "\"hello\""))
     (with-input-from-string (s a)
-      (prs:parse-grammar small-grammar :input s))))
+      (prs:parse-grammar prs/e:small-grammar :input s))))
 
 (test test-simple-grammar
   :description "Test the simple grammar"
-  (check-grammar small-grammar
+  (check-grammar prs/e:small-grammar
     ("32" 32)
     ("123.0" 123.0)
     ("hello" "hello")
@@ -256,4 +256,10 @@ end"
      '((:symbol "hi") (:symbol "there") 1 2 () 453 ((:symbol "a") . (:symbol "b")) . "artichoke"))))
 
 (test test-pascal-grammar
-  :description "Tests the simplified pascal grammar")
+  :description "Tests the simplified pascal grammar"
+  (check-grammar prs/e:small-pascal
+    ("var a, b, c: atype;
+          d, e, f : anothertype ;"
+     '(:vars (:var :idents ("a" "b" "c") :type "atype")
+             (:var :idents ("d" "e" "f") :type "anothertype")))
+    ))

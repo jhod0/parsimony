@@ -1,5 +1,5 @@
 
-(in-package :parsimony/tests)
+(in-package :parsimony/examples)
 
 (prs:deflexer dummy-lexer
   :documentation "Test a dummy lexer"
