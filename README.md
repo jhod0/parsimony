@@ -17,15 +17,65 @@ CL-USER> (prs:eval-parser (prs:parse-int))
 1234
 ; => 1234
 
+CL-USER> (with-input-from-string (s "532") (prs:eval-parser (prs:parse-int) :input s)
+; => 532
+
 CL-USER> (prs:eval-parser (prs:parse-int))
 artichoke
 ; => raises a prs:parse-failure error
 
-CL-USER> (with-input-from-string (s "532") (prs:eval-parser (prs:parse-int) :input s)
-; => 532
+CL-USER> (prs:eval-parser (prs:parse-int) :raise nil)
+whodunit
+; => :noparse
+
+CL-USER> (prs:eval-parser (prs:parse-int) :catch t)
+mandarin
+; => #(PRS:PARSE-FAILURE ...)
+```
+
+There exist a few helpful macros as well, primarily `parse-loop` and `with-parsed`. `parse-loop` will continually try to parse the same thing and execute the relevent code body, and the first time the parse fails, will exit the loop. `with-parsed` does the same thing, but only once, and will raise a `parse-failure` on failure. They share a common syntax, as follows:
+
+```lisp
+(prs:with-parsed (&optional input-stream)
+    ((value parser)
+     &rest other-parsers)
+  &rest body)
+
+(prs:parse-loop (&optional input-stream)
+    ((value parser)
+     &rest other-parsers)
+  &rest body)
+```
+
+Example usage:
+
+```lisp
+CL-USER> (with-input-from-string (s "a,b")
+           ;; We use `s` as the input stream, and bind
+           ;; `str1` and `str2` to the results of parse-alphabetical.
+           (prs:with-parsed (s)
+               ((str1 (parse-alphabetical))
+                (:ignore (prs:parse-char #\,))
+                (str2 (parse-alphabetical)))
+             (values str1 str2)))
+; => "a"
+;    "b"
+
+CL-USER> (prs:parse-loop ()
+             ((:ignore (prs:parse-char #\*))
+              (this-line (prs:parse-until (prs:parse-char #\newline))))
+           (format t "~s~%" this-line))
+*testing testing
+(#\t #\e #\s #\t #\i #\n #\g #\  #\t #\e #\s #\t #\i #\n #\g)
+*elvis has entered the building
+(#\e #\l #\v #\i #\s #\  #\h #\a #\s #\  #\e #\n #\t #\e #\r #\e #\d #\  #\t #\h #\e #\  #\b #\u #\i #\l #\d #\i #\n #\g)
+invalid
+; => (values)
 ```
 
 ### Using `make-parser` and `defparser`
+
+
 
 ## Lexers and Grammars
 
