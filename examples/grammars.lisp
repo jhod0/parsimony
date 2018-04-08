@@ -177,11 +177,11 @@ http://www.cs.utsa.edu/~wagner/CS3723/grammar/examples2.html
 
    (:jsonstring
     ((:ignore (prs:parse-char #\"))
-     (str (prs:while-fulfills (lambda (c) (not (eq c #\")))))
-     (:ignore (prs:parse-char #\")))
-    (coerce 'string str))
+     (str (prs:while-fulfills (lambda (c) (not (eq c #\"))))))
+    (coerce str 'string))
 
-   (:null (prs:expect-string "null"))
+   (:null ((:ignore (prs:expect-string "null")))
+          :null)
 
    (:open-curly (prs:parse-char #\{))
    (:close-curly (prs:parse-char #\}))
@@ -213,8 +213,15 @@ http://www.cs.utsa.edu/~wagner/CS3723/grammar/examples2.html
        ))
 
      (:jsonobjs
-      (((:jsonobj obj) :comma (:jsonobjs objs))
+      (((:jsonobj obj) (:jsonobjs-rest objs))
        (cons obj objs))
+      (((:jsonobj obj))
+       (list obj))
+      (() nil))
+
+     (:jsonobjs-rest
+      ((:comma (:jsonobjs os))
+       os)
       (() nil))
 
      (:jsonlit :jsonstring :jsonint :null)))
