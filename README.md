@@ -12,12 +12,15 @@ Parsers are created via `make-parser` or `defparser`, and are used via `eval-par
 
 ### Evaluating Parsers
 
+The function `eval-parser` accepts the keywords `:input`, `:catcch`, `:raise`, and `:default`.
+
 ```lisp
 CL-USER> (prs:eval-parser (prs:parse-int))
 1234
 ; => 1234
 
-CL-USER> (with-input-from-string (s "532") (prs:eval-parser (prs:parse-int) :input s)
+CL-USER> (with-input-from-string (s "532")
+           (prs:eval-parser (prs:parse-int) :input s)
 ; => 532
 
 CL-USER> (prs:eval-parser (prs:parse-int))
@@ -33,7 +36,7 @@ mandarin
 ; => #(PRS:PARSE-FAILURE ...)
 ```
 
-There exist a few helpful macros as well, primarily `parse-loop` and `with-parsed`. `parse-loop` will continually try to parse the same thing and execute the relevent code body, and the first time the parse fails, will exit the loop. `with-parsed` does the same thing, but only once, and will raise a `parse-failure` on failure. They share a common syntax, as follows:
+There exist a few helpful parsing macros as well, primarily `parse-loop` and `with-parsed`. `parse-loop` will continually try to parse the same thing and execute the relevent code body, and the first time the parse fails, will exit the loop. `with-parsed` does the same thing, but only once, and will raise a `parse-failure` on failure. They share a common syntax, as follows:
 
 ```lisp
 (prs:with-parsed (&optional input-stream)
@@ -75,7 +78,36 @@ invalid
 
 ### Using `make-parser` and `defparser`
 
+The macro `make-parser` constructs a parser literal, and `defparser` defines a named parser to be used in the future.
 
+Four functions are made available inside the body of `make-parser` and `defparser`: `next`, `peek`, `recurse`, and `fail`. The first two accept zero arguments, and yield the next object in the input stream, the third attempts the parser again and returns its result, and the last accepts a single argument and triggers a `parse-failure` with its argument as the cause of failure.
+
+Examples:
+
+```lisp
+;; Creates a parser which accepts any single character except 'a'
+(prs:make-parser :my-silly-parser ()
+  (let ((c (prs:next)))
+    (if (not (eq c #\a))
+        c
+        (prs:fail c))))
+
+;; The same could be accomplished via:
+(prs:fulfills (lambda (c) (not (eq c #\a))))
+
+;; Constructs a parser which will recognize two comma-separated integers
+(prs:make-parser :my-silly-parser ((a (prs:parse-int))
+                                   (:ignore (prs:parse-char #\,))
+                                   (b (prs:parse-int)))
+  (cons a b))
+
+
+;; Parses only an even number
+(prs:defparser parse-even () ((a (prs:parse-int)))
+  (if (evenp a)
+    (prs:fail a)
+    a))
+```
 
 ## Lexers and Grammars
 
