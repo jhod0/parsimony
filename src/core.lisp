@@ -68,9 +68,9 @@
 
 (defmethod print-object ((obj parser) stream)
   (if (parser-args obj)
-      (format stream "#<PRS:PARSER named: ~a args: ~a>"
+      (format stream "#(PRS:PARSER named: ~a args: ~a)"
               (parser-name obj) (parser-args obj))
-    (format stream "#<PRS:PARSER named ~a>" (parser-name obj))))
+    (format stream "#(PRS:PARSER named: ~a)" (parser-name obj))))
 
 ;; input stream -> context
 (defun new-parse-context (input)
@@ -182,6 +182,7 @@
                  (type parser self))
         (let ((cur-frame (new-parser-frame ctxt))
               (input (pc-input-stream ctxt)))
+          (declare (type fixnum cur-frame))
           ;; Create helper functions which may be used in
           ;; the body
           (flet ((peek () (peek-stream input ctxt))
