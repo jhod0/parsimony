@@ -2,13 +2,14 @@
   :description "A simple parser combinator and generator library"
   :author "Jackson O'Donnell <jacksonhodonnell@gmail.com>"
   :components ((:module "src"
+                :serial t
                 :components ((:file "package")
-                             (:file "core" :depends-on ("package"))
-                             (:file "combinators" :depends-on ("core"))
-                             (:file "util-parsers" :depends-on ("core" "combinators"))
-                             (:file "lexer" :depends-on ("core" "combinators" "util-parsers"))
-                             (:file "grammars"
-                                    :depends-on ("core" "combinators" "util-parsers" "lexer")))))
+                             (:file "core")
+                             (:file "combinators")
+                             (:file "util-parsers")
+                             (:file "file-io")
+                             (:file "lexer")
+                             (:file "grammars"))))
   :in-order-to ((test-op (test-op :parsimony/tests))))
 
 (defsystem parsimony/examples
