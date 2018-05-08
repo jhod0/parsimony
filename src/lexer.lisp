@@ -67,15 +67,15 @@
   (with-slots (peeks input-stream parser) s
     (if peeks
         (let ((top (pop peeks)))
-          (values (car top) (cdr top)))
+          (values-list top))
       (with-parsed (input-stream)
-                   (((tok val) parser))
-                   (values tok val)))))
+                   (((tok val loc) parser))
+                   (values tok val loc)))))
 
 (defmethod get-stream ((s lexer-stream) (ctxt parse-context))
-  (multiple-value-bind (tok val) (get-stream s nil)
-    (push-obj (cons tok val) ctxt)
-    (values tok val)))
+  (multiple-value-bind (tok val loc) (get-stream s nil)
+    (push-obj (list tok val loc) ctxt)
+    (values tok val loc)))
 
 (defmethod put-stream (obj (s lexer-stream))
   (push obj (lexer-stream-peeks s)))
@@ -83,7 +83,7 @@
 (defmethod peek-stream ((s lexer-stream) ctxt)
   (with-slots (peeks) s
     (if peeks
-        (values (caar peeks) (cdar peeks))
-      (multiple-value-bind (tok val) (get-stream s ctxt)
-        (push (cons tok val) peeks)
-        (values tok val)))))
+        (values-list (car peeks))
+      (multiple-value-bind (tok val loc) (get-stream s ctxt)
+        (push (list tok val loc) peeks)
+        (values tok val loc)))))
