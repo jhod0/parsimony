@@ -53,5 +53,18 @@
         (fail a))))
   str)
 
-(defparser pmap (fun &rest parsers) ((res (apply #'parse-all parsers)))
-   (apply fun res))
+
+(defparser pmap-parse-all-helper (input) ()
+  (let ((p (car input))
+        (parsers (cdr input)))
+    (cond
+      ((eq p :ignore)
+       (progn (eval-in-context (car parsers))
+              (eval-in-context (pmap-parse-all-helper (cdr parsers)))))
+      (parsers (cons (eval-in-context p)
+                     (eval-in-context (pmap-parse-all-helper parsers))))
+      (t (list (eval-in-context p))))))
+
+(defparser pmap (fun &rest parsers)
+                ((res (pmap-parse-all-helper parsers)))
+  (apply fun res))

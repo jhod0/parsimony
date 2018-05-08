@@ -180,13 +180,13 @@
       (lambda (ctxt self)
         (declare (type parse-context ctxt)
                  (type parser self))
-        (let ((cur-frame (new-parser-frame ctxt))
-              (input (pc-input-stream ctxt)))
-          (declare (type fixnum cur-frame))
+        (let ((%cur-frame% (new-parser-frame ctxt))
+              (%input% (pc-input-stream ctxt)))
+          (declare (type fixnum %cur-frame%))
           ;; Create helper functions which may be used in
           ;; the body
-          (flet ((peek () (peek-stream input ctxt))
-                 (next () (get-stream input ctxt))
+          (flet ((peek () (peek-stream %input% ctxt))
+                 (next () (get-stream %input% ctxt))
                  (fail (bad-input)
                        (error 'parse-failure
                               :problem-input bad-input))
@@ -205,7 +205,7 @@
 
              ;; Clean up
              (parse-failure (err)
-                            (unwind-until cur-frame ctxt)
+                            (unwind-until %cur-frame% ctxt)
                             (parse-failure-propogate self err))))))))
 
 (defmacro defparser (name args parsers &rest body)

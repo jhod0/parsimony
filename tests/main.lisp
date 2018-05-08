@@ -138,7 +138,7 @@
   :documentation "Tests parser map function"
   (flet ((dummy (n1 c1 n2 c2 n3)
            (is (eq c1 #\space))
-           (is (eq  c2 #\space))
+           (is (eq c2 #\space))
            (+ n1 n2 n3)))
     (for-all ((n1 (gen-integer :min 0))
               (n2 (gen-integer :min 0))
@@ -149,7 +149,21 @@
                   (prs:parse-int) (prs:parse-char #\space)
                   (prs:parse-int))
         #'=)
-       ((format nil "~d ~d ~d" n1 n2 n3) (+ n1 n2 n3))))))
+       ((format nil "~d ~d ~d" n1 n2 n3) (+ n1 n2 n3)))))
+
+#|  (for-all ((n1 (gen-integer :min 0))
+            (n2 (gen-integer :min 0)))
+    (check-parse-results
+     ((prs:pmap #'cons
+                (prs:parse-int)
+                :ignore (prs:parse-char #\comma)
+                (prs:parse-int))
+      (lambda (a b)
+        (and (consp a) (consp b)
+             (= (car a) (car b))
+             (= (cdr a) (cdr b)))))
+     ((format nil "~d,~d" n1 n2) (cons n1 n2))))
+|#)
 
 (test test-int-not-float
   :documentation "Tests Alternative with ints and floats"
