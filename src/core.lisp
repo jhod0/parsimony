@@ -1,13 +1,16 @@
 (in-package :parsimony)
 
 (defgeneric get-stream (stream ctxt)
-  (:documentation "Take an object from a stream. Like gray streams, yields object or :eof"))
+  (:documentation "Take an object from a stream. Like gray streams, yields object or :eof."))
 
 (defgeneric put-stream (obj stream)
-  (:documentation "Replace an object in a stream"))
+  (:documentation "Replace an object in a stream."))
 
 (defgeneric peek-stream (stream ctxt)
   (:documentation "Yields an object, without moving the stream forward."))
+
+(defgeneric stream-location (stream)
+  (:documentation "The location of the next object in the stream, i.e., file, line, col no."))
 
 
 
@@ -68,9 +71,9 @@
 
 (defmethod print-object ((obj parser) stream)
   (if (parser-args obj)
-      (format stream "#(PRS:PARSER named: ~a args: ~a)"
+      (format stream "#<PRS:PARSER named: ~a args: ~a>"
               (parser-name obj) (parser-args obj))
-    (format stream "#(PRS:PARSER named: ~a)" (parser-name obj))))
+    (format stream "#<PRS:PARSER named: ~a>" (parser-name obj))))
 
 ;; input stream -> context
 (defun new-parse-context (input)
@@ -133,9 +136,9 @@
 ;; ======== Parser evaluation ========
 
 (defun %do-eval-parser (parser
-                    &key (input *default-parse-input*)
-                      catch-failure (raise t) (default :noparse))
-  "Appttempts a given parser on an input stream (or existing parser context)"
+                        &key (input *default-parse-input*)
+                          catch-failure (raise t) (default :noparse))
+  "Attempts a given parser on an input stream (or existing parser context)"
   (declare (type parser parser)
            (type boolean raise)
            (type boolean catch-failure))
