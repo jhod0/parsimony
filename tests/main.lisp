@@ -134,6 +134,23 @@
 
 (in-suite combinator-tests)
 
+(test test-pmap
+  :documentation "Tests parser map function"
+  (flet ((dummy (n1 c1 n2 c2 n3)
+           (is (eq c1 #\space))
+           (is (eq  c2 #\space))
+           (+ n1 n2 n3)))
+    (for-all ((n1 (gen-integer :min 0))
+              (n2 (gen-integer :min 0))
+              (n3 (gen-integer :min 0)))
+      (check-parse-results
+       ((prs:pmap #'dummy
+                  (prs:parse-int) (prs:parse-char #\space)
+                  (prs:parse-int) (prs:parse-char #\space)
+                  (prs:parse-int))
+        #'=)
+       ((format nil "~d ~d ~d" n1 n2 n3) (+ n1 n2 n3))))))
+
 (test test-int-not-float
   :documentation "Tests Alternative with ints and floats"
   (check-parse-results ((prs:alternative (prs:parse-float) (prs:parse-int))

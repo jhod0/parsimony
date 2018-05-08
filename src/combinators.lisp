@@ -2,6 +2,7 @@
 
 (in-package :parsimony)
 
+
 (defparser alternative (parser &rest parsers) ()
   (labels ((try-all (p rest)
              (handler-case
@@ -51,3 +52,6 @@
       (unless (eq (aref str i) a)
         (fail a))))
   str)
+
+(defparser pmap (fun &rest parsers) ((res (apply #'parse-all parsers)))
+   (apply fun res))
