@@ -248,11 +248,8 @@ Example:
                       (,@parses)
                       ,@forms))
              forms))
-        (parse
-          (if (eq parser :location)
-            '(location)
-            `(%do-eval-parser ,parser ,@(when input `(:input ,input))
-                             ,@args))))
+        (parse `(%do-eval-parser ,parser ,@(when input `(:input ,input))
+                             ,@args)))
     (cond
       ((eq pattern :ignore)
         `(progn ,parse ,@continuation))
@@ -260,7 +257,7 @@ Example:
         `(let ((,pattern ,parse))
            ,@continuation))
       (t `(multiple-value-bind ,pattern ,parse
-            ,@continuation)))))
+            ,@continuation)))))))))
 
 (defmacro eval-in-context (parser &rest args)
   `(%do-eval-parser ,parser :input ctxt ,@args))
