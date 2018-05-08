@@ -66,10 +66,10 @@
     (make-instance 'prs-file-stream :stream stream :loc loc)))
 
 (defmethod get-stream ((s prs-file-stream) ctxt)
-  (declare (ignore ctxt))
   (with-slots (stream loc) s
-    (let ((c (read-char stream nil :eof))
+    (let ((c (get-stream stream ctxt))
           (start-loc (copy-file-loc loc)))
+;      (format t "read character ~a at location ~s~%" c loc)
       (case c
         ;; If EOF, no need to change loc
         (:eof (values :eof start-loc))
@@ -97,11 +97,11 @@
         (dec-file-col loc))
     (assert (not (or (<= (fl-col loc) 0)
                      (<= (fl-row loc) 0))))
-    (unread-char obj stream)))
+    (put-stream obj stream)))
 
 (defmethod peek-stream ((s prs-file-stream) ctxt)
   (with-slots (stream loc) s
-    (values (peek-char nil stream nil :eof)
+    (values (peek-stream stream ctxt)
             (copy-file-loc loc))))
 
 (defmethod stream-location ((s prs-file-stream))

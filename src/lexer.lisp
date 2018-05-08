@@ -69,7 +69,7 @@
   (declare (type lexer l))
   (make-lexer-stream-raw :lexer l
                          :parser (lexer-parser l)
-                         :input-stream input))
+                         :input-stream (new-file-stream input)))
 
 (defmethod get-stream ((s lexer-stream) (ctxt null))
   (declare (ignore ctxt))
@@ -77,9 +77,7 @@
     (if peeks
         (let ((top (pop peeks)))
           (values-list top))
-        (with-parsed (input-stream)
-          (((tok val loc) parser))
-          (values tok val loc)))))
+        (eval-parser parser :input input-stream))))
 
 (defmethod get-stream ((s lexer-stream) (ctxt parse-context))
   (multiple-value-bind (tok val loc) (get-stream s nil)
