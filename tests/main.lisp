@@ -71,6 +71,23 @@
      ,@(when others
              `((check-lexer ,parser ,@others)))))
 
+(defmacro check-lexer-locations (lexer (input &rest tokens) &rest inputs)
+  `(progn
+     (with-input-from-string (stream ,input)
+       (let ((lex-stream (prs:lexer-stream ,lexer :input stream))
+             (expected ',tokens))
+         (loop while expected do
+              (multiple-value-bind (type val loc) (prs:get-stream lex-stream nil)
+                (declare (ignore val))
+                (let* ((this-exp (pop expected))
+                       (exp-type (car this-exp))
+                       (row (cadr this-exp))
+                       (col (caddr this-exp)))
+                  (is (eq type exp-type))
+                  (is (= (prs::fl-row loc) row))
+                  (is (= (prs::fl-col loc) col)))))))
+     ,@(when inputs (list `(check-lexer-locations ,lexer ,@inputs)))))
+
 (defun full-eq (a b)
   (cond
     ((symbolp a) (eq a b))
@@ -258,6 +275,49 @@ end"
               (:ident "other") :colon :packed :array
               :open-brace (:integer 1) :range-dots (:integer 30) :close-brace
               :of (:ident "char") :semicolon :end))))
+
+(test test-pascal-lexer-locations
+  (check-lexer-locations prs/e:small-pascal-lexer
+    ("
+type smallstring = packed array[1..20] of char;
+     record a, b, c : sometype ;
+            other: packed array [ 4 .. 35 ] of char;"
+     (:type 2 1)
+     (:ident 2 6)
+     (:equals 2 18)
+     (:packed 2 20)
+     (:array 2 27)
+     (:open-brace 2 32)
+     (:integer 2 33)
+     (:range-dots 2 34)
+     (:integer 2 36)
+     (:close-brace 2 38)
+     (:of 2 40)
+     (:ident 2 43)
+     (:semicolon 2 47)
+
+     (:record 3 6)
+     (:ident 3 13)
+     (:comma 3 14)
+     (:ident 3 16)
+     (:comma 3 17)
+     (:ident 3 19)
+     (:colon 3 21)
+     (:ident 3 23)
+     (:semicolon 3 32)
+
+     (:ident 4 13)
+     (:colon 4 18)
+     (:packed 4 20)
+     (:array 4 27)
+     (:open-brace 4 33)
+     (:integer 4 35)
+     (:range-dots 4 37)
+     (:integer 4 40)
+     (:close-brace 4 43)
+     (:of 4 45)
+     (:ident 4 48)
+     (:semicolon 4 52))))
 
 (test test-json-lexer
   (check-lexer (prs:get-lexer-parser prs/e:json-lexer)
