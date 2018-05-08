@@ -18,7 +18,9 @@
   :components ((:module "examples"
                 :serial t
                 :components ((:file "package")
-                             (:file "grammars")))))
+                             (:file "grammars")
+                             (:file "hoc")
+                             (:file "arith")))))
 
 (defsystem parsimony/tests
   :description "Test suite"

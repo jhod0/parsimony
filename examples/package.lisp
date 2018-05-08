@@ -5,4 +5,5 @@
   (:export :dummy-lexer
            :small-grammar-lexer :small-grammar
            :small-pascal-lexer :small-pascal
-           :json-lexer :json-parser))
+           :json-lexer :json-parser
+           :arith))
