@@ -29,7 +29,7 @@
                                tmp-name)))
            (values ,rule-name ,res-name ,loc-name))))))
 
-(defmacro deflexer (name &key documentation whitespace terminals (include-eof t))
+(defmacro deflexer (name &key documentation whitespace terminals include-eof)
   ;; When include-eof is true, automatically add a :eof terminal
   ;; which matches end-of-file on source
   (when include-eof
@@ -71,7 +71,7 @@
   (lexer (error "must refer to lexer") :type lexer)
   (parser (error "must supply parser") :type parser)
   (input-stream (error "need an input stream"))
-  (next-result nil :type list)
+  (next-result nil :type (or list parse-failure))
   (peeks nil :type list))
 
 (defun lexer-stream (l &key (input *default-parse-input*))
@@ -96,12 +96,18 @@
 
         ;; If not...
         (let ((res next-result))
+          (when (not (listp res))
+            (error res))
           ;; if EOF, no need to get the next token in stream at all,
           ;; instead just skip the call to eval-parser
           (unless (eq (cadr res) :eof)
-            (multiple-value-bind (tok val loc)
-                (eval-parser parser :input input-stream)
-              (setf next-result (list tok val loc))))
+            (handler-case
+                (multiple-value-bind (tok val loc)
+                    (eval-parser parser :input input-stream)
+                  (setf next-result (list tok val loc)))
+              (parse-failure (err)
+                (setf next-result err))))
+          (assert (typep res 'list))
           (values-list res)))))
 
 (defmethod get-stream ((s lexer-stream) (ctxt parse-context))
@@ -119,5 +125,7 @@
       (values-list next-result))))
 
 (defmethod stream-location ((s lexer-stream))
-  (with-slots (next-result) s
-    (third next-result)))
+  (with-slots (next-result input-stream) s
+    (if (listp next-result)
+        (third next-result)
+        (stream-location input-stream))))

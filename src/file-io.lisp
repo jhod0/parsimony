@@ -69,7 +69,7 @@
   (with-slots (stream loc) s
     (let ((c (get-stream stream ctxt))
           (start-loc (copy-file-loc loc)))
-      (format t "read character ~a at location ~s from stream ~a~%" c loc stream)
+      ;(format t "read character ~a at location ~s from stream ~a~%" c loc stream)
       (case c
         ;; If EOF, no need to change loc
         (:eof (values :eof start-loc))
@@ -86,7 +86,7 @@
          (inc-file-col loc)
          (values c start-loc))))))
 
-(defmethod put-stream ((obj character) (s prs-file-stream))
+(defmethod put-stream (obj (s prs-file-stream))
   (with-slots (stream loc) s
     (if (eq obj #\newline)
         ;; If a newline, restore to previous line's column no

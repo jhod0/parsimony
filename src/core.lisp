@@ -135,10 +135,10 @@
   (read-char s nil :eof))
 
 (defmethod get-stream ((s stream) (ctxt parse-context))
-  (let ((c (read-char s nil :eof)))
+  (let ((c (get-stream s nil)))
     (unless (eq c :eof)
-      (push-obj c ctxt)
-      c)))
+      (push-obj c ctxt))
+    c))
 
 (defmethod put-stream (obj (s stream))
   (unread-char obj s))
