@@ -29,14 +29,21 @@
                                tmp-name)))
            (values ,rule-name ,res-name ,loc-name))))))
 
-(defmacro deflexer (name &key documentation whitespace terminals)
+(defmacro deflexer (name &key documentation whitespace terminals (include-eof t))
+  ;; When include-eof is true, automatically add a :eof terminal
+  ;; which matches end-of-file on source
+  (when include-eof
+    (setf terminals
+          (append terminals
+                  (list '(:eof ((:ignore (parse-eof))) :eof)))))
   (let* ((terminal-names (mapcar #'(lambda (n) (the keyword (car n)))
                                  terminals))
          (lexer-names (mapcar #'(lambda (term) (make-lexer-name name term))
                               terminal-names))
          (parser-core `(alternative
                         ,@(mapcar #'(lambda (name) `(,name))
-                                              lexer-names))))
+                                  lexer-names))))
+
     `(eval-when (:compile-toplevel :load-toplevel)
        (labels
            ,(mapcar #'(lambda (rule)

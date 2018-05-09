@@ -69,7 +69,7 @@
   (with-slots (stream loc) s
     (let ((c (get-stream stream ctxt))
           (start-loc (copy-file-loc loc)))
-;      (format t "read character ~a at location ~s~%" c loc)
+      (format t "read character ~a at location ~s from stream ~a~%" c loc stream)
       (case c
         ;; If EOF, no need to change loc
         (:eof (values :eof start-loc))
