@@ -19,15 +19,13 @@
 (defparameter *check-function* #'eq)
 
 (defun check-result (input result &optional (eq *check-function*))
-  (with-input-from-string (s input)
-    (let ((val (prs:eval-parser *cur-parser* :input s)))
-      (is (funcall eq val result)
-          "Expected ~s, parsed ~s" result val))))
+  (let ((val (prs:eval-parser *cur-parser* :input input)))
+    (is (funcall eq val result)
+        "Expected ~s, parsed ~s" result val)))
 
 (defun check-fails (input)
-  (with-input-from-string (s input)
-    (signals prs:parse-failure
-             (prs:eval-parser *cur-parser* :input s))))
+  (signals prs:parse-failure
+           (prs:eval-parser *cur-parser* :input input)))
 
 
 (defmacro check-parse-results ((parser &optional checker) &rest checks)
@@ -73,8 +71,8 @@
 
 (defmacro check-lexer-locations (lexer (input &rest tokens) &rest inputs)
   `(progn
-     (with-input-from-string (stream ,input)
-       (let ((lex-stream (prs:lexer-stream ,lexer :input stream))
+     (with-input-from-string (s ,input)
+       (let ((lex-stream (prs:lexer-stream ,lexer :input s))
              (expected ',tokens))
          (loop while expected do
               (multiple-value-bind (type val loc) (prs:get-stream lex-stream nil)

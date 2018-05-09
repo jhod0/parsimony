@@ -173,9 +173,13 @@
                     &key (input *default-parse-input*)
                       catch-failure (raise t) (default :noparse))
   (handler-case
-      (%do-eval-parser parser
-                       :input input :catch-failure catch-failure
-                       :raise raise :default default)
+      (with-input-from-string (s (if (stringp input)
+                                     input
+                                     ""))
+          (%do-eval-parser parser
+                           :input (if (stringp input) s  input)
+                           :catch-failure catch-failure
+                           :raise raise :default default))
     (parse-failure (err)
       (restart-case
           (error err)
