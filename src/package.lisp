@@ -24,7 +24,7 @@
            :expect-string
 
            ;; Provided parsers
-           :parse-digit :parse-int :parse-float :parse-char :one-of :whitespace
+           :parse-digit :parse-int :parse-float :parse-char :parse-eof :one-of :whitespace
 
            ;; Lexers
            :deflexer :lexer :get-lexer-parser :lexer-stream

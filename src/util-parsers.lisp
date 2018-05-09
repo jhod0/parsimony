@@ -21,7 +21,13 @@
 
 (defparser parse-char (c) ()
   (if (eq (peek) c)
-    (next) (fail (peek))))
+      (next) (fail (peek))))
+
+(defparser parse-eof () ()
+   (let ((c (next)))
+     (unless (eq c :eof)
+       (fail c))
+     :eof))
 
 (defparser parse-float ()
   ((big (parse-int))
