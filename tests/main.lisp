@@ -75,7 +75,15 @@
        (let ((lex-stream (prs:lexer-stream ,lexer :input s))
              (expected ',tokens))
          (loop while expected do
-              (multiple-value-bind (type val loc) (prs:get-stream lex-stream nil)
+              (multiple-value-bind (type val loc)
+
+                  (handler-bind
+                      ((prs:parse-failure
+                        #'(lambda (c)
+                            (invoke-restart 'prs::print-parser-backtrace)
+                            (error c))))
+                    (prs:get-stream lex-stream nil))
+
                 (declare (ignore val))
                 (let* ((this-exp (pop expected))
                        (exp-type (car this-exp))

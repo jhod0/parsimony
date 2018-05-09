@@ -59,25 +59,43 @@
 (defun get-lexer-parser (lexer)
   (lexer-parser lexer))
 
+;; TODO track location as the tokens' location
 (defstruct (lexer-stream (:constructor make-lexer-stream-raw))
   (lexer (error "must refer to lexer") :type lexer)
   (parser (error "must supply parser") :type parser)
   (input-stream (error "need an input stream"))
+  (next-result nil :type list)
   (peeks nil :type list))
 
 (defun lexer-stream (l &key (input *default-parse-input*))
   (declare (type lexer l))
-  (make-lexer-stream-raw :lexer l
-                         :parser (lexer-parser l)
-                         :input-stream (new-file-stream input)))
+  (let ((istream (new-file-stream input)))
+    (make-lexer-stream-raw :lexer l
+                           :parser (lexer-parser l)
+                           :input-stream istream
+                           :next-result
+                           (multiple-value-bind (tok val loc)
+                               (eval-parser (lexer-parser l) :input istream)
+                             (list tok val loc)))))
 
+;; TODO there is some problem with handling EOF
 (defmethod get-stream ((s lexer-stream) (ctxt null))
   (declare (ignore ctxt))
-  (with-slots (peeks input-stream parser) s
+  (with-slots (peeks input-stream parser next-result) s
     (if peeks
+        ;; If we have peeked results...
         (let ((top (pop peeks)))
           (values-list top))
-        (eval-parser parser :input input-stream))))
+
+        ;; If not...
+        (let ((res next-result))
+          ;; if EOF, no need to get the next token in stream at all,
+          ;; instead just skip the call to eval-parser
+          (unless (eq (cadr res) :eof)
+            (multiple-value-bind (tok val loc)
+                (eval-parser parser :input input-stream)
+              (setf next-result (list tok val loc))))
+          (values-list res)))))
 
 (defmethod get-stream ((s lexer-stream) (ctxt parse-context))
   (multiple-value-bind (tok val loc) (get-stream s nil)
@@ -88,13 +106,11 @@
   (push obj (lexer-stream-peeks s)))
 
 (defmethod peek-stream ((s lexer-stream) ctxt)
-  (with-slots (peeks) s
+  (with-slots (peeks next-result) s
     (if peeks
         (values-list (car peeks))
-      (multiple-value-bind (tok val loc) (get-stream s ctxt)
-        (push (list tok val loc) peeks)
-        (values tok val loc)))))
+      (values-list next-result))))
 
 (defmethod stream-location ((s lexer-stream))
-  (with-slots (input-stream) s
-    (stream-location input-stream)))
+  (with-slots (next-result) s
+    (third next-result)))

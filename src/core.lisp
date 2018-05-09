@@ -50,7 +50,7 @@
                        (get-trace cause))))))
     (values (get-trace failure) (parse-failure-problem failure))))
 
-(defun print-parse-failure-backtrace (failure)
+(defun print-parse-failure-backtrace (failure &optional (out-stream *error-output*))
   (declare (type parse-failure failure))
   (let ((bt (parse-failure-backtrace failure))
         (ind 0))
@@ -58,12 +58,12 @@
       (incf ind)
       (with-slots (location parser cause problem-input) f
 
-        (format t "~d:" ind)
+        (format out-stream "~d:" ind)
         (when location
-          (format t "~aat ~a~%" #\tab location))
-        (format t "~ain ~a~%" #\tab parser)
+          (format out-stream "~aat ~a~%" #\tab location))
+        (format out-stream "~ain ~a~%" #\tab parser)
         (unless cause
-          (format t "~aon input ~a~%" #\tab problem-input))))))
+          (format out-stream "~aon input ~a~%" #\tab problem-input))))))
 
 
 (defmacro with-parse-input ((stream) &rest body)
@@ -207,16 +207,22 @@
                  (type parser self))
         (let* ((%cur-frame% (new-parser-frame ctxt))
                (%input% (pc-input-stream ctxt))
-               (%starting-location% (stream-location %input%)))
+               (%starting-location% (stream-location %input%))
+               (%recent-location% %starting-location%))
           (declare (type fixnum %cur-frame%))
+          ;;(format t "started parser ~a at loc ~a~%" self %starting-location%)
           ;; Create helper functions which may be used in
           ;; the body
           (flet ((peek () (peek-stream %input% ctxt))
-                 (next () (get-stream %input% ctxt))
+                 (next ()
+                   (setf %recent-location% (stream-location %input%))
+                   (get-stream %input% ctxt))
                  (location () (stream-location %input%))
                  (fail (bad-input)
-                       (error 'parse-failure
-                              :problem-input bad-input))
+                   (error 'parse-failure
+                          :parser self
+                          :location %recent-location%
+                          :problem-input bad-input))
                  (recurse (&key (raise t) (default :noparse))
                     (declare (type boolean raise))
                     (eval-in-context self :raise raise :default default)))
@@ -233,8 +239,11 @@
 
              ;; Clean up
              (parse-failure (err)
-                            (unwind-until %cur-frame% ctxt)
-                            (parse-failure-propogate self err %starting-location%))))))))
+               (unwind-until %cur-frame% ctxt)
+               (assert (or (not (eq (parse-failure-location err)
+                                    %starting-location%))
+                           (eq %starting-location% %recent-location%)))
+               (parse-failure-propogate self err %starting-location%))))))))
 
 (defmacro defparser (name args parsers &rest body)
   (let ((tmp (gensym)))
