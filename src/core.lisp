@@ -22,6 +22,9 @@
            :type parser
            :initarg :parser
            :initform nil)
+   (location :accessor parse-failure-location
+             :initarg :location
+             :initform nil)
    (problem-input :accessor parse-failure-problem
                   :type '(or null (cons t null))
                   :initarg :problem-input
@@ -31,25 +34,36 @@
           :initarg :cause
           :initform nil)))
 
-(defun parse-failure-propogate (parser failure)
+(defun parse-failure-propogate (parser failure &optional loc)
   (declare (type parse-failure failure)
            (type parser parser))
-  (if (parse-failure-parser failure)
-      (error 'parse-failure :parser parser :cause failure
-             :problem-input (parse-failure-problem failure))
-    (progn
-      (setf (parse-failure-parser failure) parser)
-      (error failure))))
+  (error 'parse-failure :parser parser :location loc
+         :cause failure
+         :problem-input (parse-failure-problem failure)))
 
 (defun parse-failure-backtrace (failure)
   (declare (type parse-failure failure))
   (labels ((get-trace (pf)
-             (with-slots (parser cause) pf
-               (cons parser
+             (with-slots (cause) pf
+               (cons pf
                      (when cause
                        (get-trace cause))))))
     (values (get-trace failure) (parse-failure-problem failure))))
 
+(defun print-parse-failure-backtrace (failure)
+  (declare (type parse-failure failure))
+  (let ((bt (parse-failure-backtrace failure))
+        (ind 0))
+    (dolist (f bt)
+      (incf ind)
+      (with-slots (location parser cause problem-input) f
+
+        (format t "~d:" ind)
+        (when location
+          (format t "~aat ~a~%" #\tab location))
+        (format t "~ain ~a~%" #\tab parser)
+        (unless cause
+          (format t "~aon input ~a~%" #\tab problem-input))))))
 
 
 (defmacro with-parse-input ((stream) &rest body)
@@ -166,7 +180,8 @@
       (restart-case
           (error err)
         (print-parser-backtrace ()
-          (format t "~a~%" (parse-failure-backtrace err)))))))
+          :report "Print a backtrace of the parser failure."
+          (print-parse-failure-backtrace err))))))
 
 (defmacro parse-loop ((&optional context) parsers &rest body)
   `(handler-case
@@ -186,8 +201,9 @@
       (lambda (ctxt self)
         (declare (type parse-context ctxt)
                  (type parser self))
-        (let ((%cur-frame% (new-parser-frame ctxt))
-              (%input% (pc-input-stream ctxt)))
+        (let* ((%cur-frame% (new-parser-frame ctxt))
+               (%input% (pc-input-stream ctxt))
+               (%starting-location% (stream-location %input%)))
           (declare (type fixnum %cur-frame%))
           ;; Create helper functions which may be used in
           ;; the body
@@ -214,7 +230,7 @@
              ;; Clean up
              (parse-failure (err)
                             (unwind-until %cur-frame% ctxt)
-                            (parse-failure-propogate self err))))))))
+                            (parse-failure-propogate self err %starting-location%))))))))
 
 (defmacro defparser (name args parsers &rest body)
   (let ((tmp (gensym)))

@@ -94,3 +94,7 @@
       (multiple-value-bind (tok val loc) (get-stream s ctxt)
         (push (list tok val loc) peeks)
         (values tok val loc)))))
+
+(defmethod stream-location ((s lexer-stream))
+  (with-slots (input-stream) s
+    (stream-location input-stream)))
