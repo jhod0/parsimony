@@ -1,5 +1,4 @@
-[![Build Status](https://travis-ci.org/jhod0/parsimony.svg?branch=master)](https://travis-ci.org/jhod0/parsimony)
-# Parsimony
+# Parsimony [![Build Status](https://travis-ci.org/jhod0/parsimony.svg?branch=master)](https://travis-ci.org/jhod0/parsimony)
 
 A simple, frugal, Common Lisp library for building and using parsers, with zero external dependencies.
 
