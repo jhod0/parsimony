@@ -7,7 +7,7 @@
   :terminals
   ((:float (prs:parse-float))
    (:int (prs:parse-int))
-   (:newline (prs:parse-char #\newline))
+   (:newline #\newline)
    (:ident ((name
              (prs:parse-some (prs:one-of "abcdefghijklmnopqrstuvwxyz"))))
            (coerce name 'string))))
@@ -26,14 +26,14 @@
    (:ident ((s (prs:parse-some (prs:one-of "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"))))
            (coerce s 'string))
 
-   (:open-brace (prs:parse-char #\[))
-   (:close-brace (prs:parse-char #\]))
-   (:open-paren (prs:parse-char #\())
-   (:close-paren (prs:parse-char #\)))
-   (:comma (prs:parse-char #\,))
-   (:pipe (prs:parse-char #\|))
-   (:colon (prs:parse-char #\:))
-   (:equals (prs:parse-char #\=))))
+   (:open-brace #\[)
+   (:close-brace #\])
+   (:open-paren  #\()
+   (:close-paren #\))
+   (:comma #\,)
+   (:pipe #\|)
+   (:colon #\:)
+   (:equals #\=)))
 
 (prs:defgrammar small-grammar
   :description "A grammar for parsing simple objects, with elixir-like syntax"
@@ -92,17 +92,17 @@ http://www.cs.utsa.edu/~wagner/CS3723/grammar/examples2.html
            (coerce s 'string))
    (:integer (prs:parse-int))
 
-   (:colon (prs:parse-char #\:))
-   (:semicolon (prs:parse-char #\;))
-   (:comma (prs:parse-char #\,))
-   (:equals (prs:parse-char #\=))
-   (:carrot (prs:parse-char #\^))
+   (:colon #\:)
+   (:semicolon #\;)
+   (:comma #\,)
+   (:equals #\=)
+   (:carrot #\^)
    (:range-dots (prs:expect-string ".."))
 
-   (:open-brace (prs:parse-char #\[))
-   (:close-brace (prs:parse-char #\]))
-   (:open-paren (prs:parse-char #\())
-   (:close-paren (prs:parse-char #\)))))
+   (:open-brace #\[)
+   (:close-brace #\])
+   (:open-paren #\()
+   (:close-paren #\))))
 
 (prs:defgrammar small-pascal
   :lexer small-pascal-lexer
@@ -183,12 +183,12 @@ http://www.cs.utsa.edu/~wagner/CS3723/grammar/examples2.html
    (:null ((:ignore (prs:expect-string "null")))
           :null)
 
-   (:open-curly (prs:parse-char #\{))
-   (:close-curly (prs:parse-char #\}))
-   (:open-brace (prs:parse-char #\[))
-   (:close-brace (prs:parse-char #\]))
-   (:colon (prs:parse-char #\:))
-   (:comma (prs:parse-char #\,))))
+   (:open-curly #\{)
+   (:close-curly #\})
+   (:open-brace #\[)
+   (:close-brace #\])
+   (:colon #\:)
+   (:comma #\,)))
 
 (prs:defgrammar json-parser
     :description "Parses a subset of JSON"
