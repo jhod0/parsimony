@@ -9,10 +9,12 @@
   (documentation nil :type (or string null)))
 
 (defun make-lexer-name (lexer-name rule-name)
+  "Constructs a name for a lexer token target, internal use."
   (intern (concatenate 'string "LEX-" (symbol-name lexer-name) "-" (symbol-name rule-name))
           *package*))
 
 (defun make-lexer-for-terminal (lexer-name rule)
+  "Constructs a function definition from a lexer rule."
   (let* ((this-name (make-lexer-name lexer-name (car rule)))
          (rule-name (car rule))
          (tmp-name (gensym))
@@ -54,17 +56,26 @@ Returns (values literal-rules complex-rules)"
           (values literals
                   (cons this-rule full-rules))))))
 
+(defun make-literal-lexer (name literals)
+  "Generates the definition for a parser, based on a set of lexer tokens defined
+as literals."
+  ;; TODO implement
+  (error "unimplemented"))
+
 (defun make-lexer-terminal-definitions (name literals rules)
+  "Generates the functions, inside (labels), for use in a lexer definition."
   (let ((full-rule-definitions
          (mapcar #'(lambda (rule)
                      (make-lexer-for-terminal name rule))
                  rules)))
     (if (null literals)
         full-rule-definitions
-        ;; TODO implement literal parser
-        (error "unimplemented"))))
+        (cons (make-literal-lexer name literals)
+              full-rule-definitions))))
 
 (defmacro deflexer (name &key documentation whitespace terminals)
+  "Generates a lexer definition, with a given name and the tokens specified in
+terminals."
   ;; First split literals and full rules
   (multiple-value-bind (literal-rules full-rules)
       (partition-lexer-rules terminals)
@@ -79,6 +90,8 @@ Returns (values literal-rules complex-rules)"
                                   (list `(,literal-lexer-name)))
                           ,@(mapcar #'(lambda (name) `(,name))
                                     lexer-names))))
+
+      ;; Form to return
       `(eval-when (:compile-toplevel :load-toplevel)
          (labels
              ,(make-lexer-terminal-definitions
@@ -107,6 +120,9 @@ Returns (values literal-rules complex-rules)"
   (peeks nil :type list))
 
 (defun lexer-stream (l &key (input *default-parse-input*))
+  "Constructs a new lexer-stream from a given lexer, pulling from `input`.
+The methods `get-stream`, `put-stream`, `peek-stream`, and `stream-location`
+on the lexer-stream returned from this function."
   (declare (type lexer l))
   (make-lexer-stream-raw :lexer l
                          :parser (lexer-parser l)
