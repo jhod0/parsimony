@@ -125,7 +125,8 @@
       (values-list next-result))))
 
 (defmethod stream-location ((s lexer-stream))
-  (with-slots (next-result input-stream) s
-    (if (listp next-result)
-        (third next-result)
-        (stream-location input-stream))))
+  (with-slots (peeks next-result input-stream) s
+    (cond
+      (peeks (copy-file-loc (third (car peeks))))
+      ((listp next-result) (copy-file-loc (third next-result)))
+      (t (stream-location input-stream)))))
