@@ -8,6 +8,8 @@
 
            :parse-failure
            :parse-failure-backtrace
+           :print-backtrace
+           :print-backtrace-reraise
            :with-parse-input
 
            ;; Core parsing utils
