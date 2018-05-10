@@ -1,6 +1,8 @@
 (defsystem parsimony
   :description "A simple parser combinator and generator library"
   :author "Jackson O'Donnell <jacksonhodonnell@gmail.com>"
+  :homepage "https://github.com/jhod0/parsimony"
+  :source-control (:git "git@github.com:jhod0/parsimony.git")
   :components ((:module "src"
                 :serial t
                 :components ((:file "package")
