@@ -80,8 +80,8 @@
                   (handler-bind
                       ((prs:parse-failure
                         #'(lambda (c)
-                            (invoke-restart 'prs::print-parser-backtrace)
-                            (error c))))
+                            (declare (ignore c))
+                            (invoke-restart 'prs:print-backtrace-reraise))))
                     (prs:get-stream lex-stream nil))
 
                 (declare (ignore val))
