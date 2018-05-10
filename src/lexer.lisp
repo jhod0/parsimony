@@ -29,29 +29,70 @@
                                tmp-name)))
            (values ,rule-name ,res-name ,loc-name))))))
 
+(defun lexer-literal-p (obj)
+  "Lexer definitions can use string or character literals."
+  (or (characterp obj)
+      (stringp obj)))
+
+(defun partition-lexer-rules (rules)
+  "Separate lexer rule which are just literals, from more complexlexer rules.
+
+Returns (values literal-rules complex-rules)"
+  (when (null rules)
+    (return-from partition-lexer-rules (values nil nil)))
+
+  (let* ((this-rule (car rules))
+         (rule-body (cdr this-rule))
+         (rest-rules (cdr rules)))
+    (multiple-value-bind
+          (literals full-rules)
+        (partition-lexer-rules rest-rules)
+      (if (and (= (length rule-body) 1)
+               (lexer-literal-p (car rule-body)))
+          (values (cons this-rule literals)
+                  full-rules)
+          (values literals
+                  (cons this-rule full-rules))))))
+
+(defun make-lexer-terminal-definitions (name literals rules)
+  (let ((full-rule-definitions
+         (mapcar #'(lambda (rule)
+                     (make-lexer-for-terminal name rule))
+                 rules)))
+    (if (null literals)
+        full-rule-definitions
+        ;; TODO implement literal parser
+        (error "unimplemented"))))
+
 (defmacro deflexer (name &key documentation whitespace terminals)
-  (let* ((terminal-names (mapcar #'(lambda (n) (the keyword (car n)))
-                                 terminals))
-         (lexer-names (mapcar #'(lambda (term) (make-lexer-name name term))
-                              terminal-names))
-         (parser-core `(alternative
-                        ,@(mapcar #'(lambda (name) `(,name))
-                                              lexer-names))))
-    `(eval-when (:compile-toplevel :load-toplevel)
-       (labels
-           ,(mapcar #'(lambda (rule)
-                        (make-lexer-for-terminal name rule))
-                    terminals)
-         (defparameter ,name
-           (make-lexer-struct :name ',name
-                              :documentation ,documentation
-                              :terminals (list ,@terminal-names)
-                              :parser
-                              ,(if whitespace
-                                   `(make-parser ',name ((:ignore (parse-many ,whitespace)))
-                                                 (eval-in-context
-                                                  ,parser-core))
-                                   parser-core)))))))
+  ;; First split literals and full rules
+  (multiple-value-bind (literal-rules full-rules)
+      (partition-lexer-rules terminals)
+    ;; Name all of the lexers, and generate the core parser expression
+    (let* ((terminal-names (mapcar #'(lambda (n) (the keyword (car n)))
+                                   full-rules))
+           (lexer-names (mapcar #'(lambda (term) (make-lexer-name name term))
+                                terminal-names))
+           (literal-lexer-name (make-lexer-name name :literals))
+           (parser-core `(alternative
+                          ,@(when literal-rules
+                                  (list `(,literal-lexer-name)))
+                          ,@(mapcar #'(lambda (name) `(,name))
+                                    lexer-names))))
+      `(eval-when (:compile-toplevel :load-toplevel)
+         (labels
+             ,(make-lexer-terminal-definitions
+                 name literal-rules full-rules)
+           (defparameter ,name
+             (make-lexer-struct :name ',name
+                                :documentation ,documentation
+                                :terminals (list ,@terminal-names)
+                                :parser
+                                ,(if whitespace
+                                     `(make-parser ',name ((:ignore (parse-many ,whitespace)))
+                                                   (eval-in-context
+                                                    ,parser-core))
+                                     parser-core))))))))
 
 (defmacro lex (name &rest args)
   `(eval-parser (lexer-parser ,name) ,@args))
