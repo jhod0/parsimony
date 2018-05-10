@@ -56,30 +56,125 @@ Returns (values literal-rules complex-rules)"
           (values literals
                   (cons this-rule full-rules))))))
 
+(defun compare-char-lists (a b)
+  "Comparison function for sorting lists of chars"
+  (cond
+    ((and (null a) (null b)) t)
+    ((and (null a) b) t)
+    ((null b) nil)
+    ((char= (car a) (car b))
+     (compare-char-lists (cdr a) (cdr b)))
+    (t (char< (car a) (car b)))))
+
+(defun literal-rule-to-node (rule)
+  (let ((lit (cadr rule)))
+    (list (cond
+            ((and (stringp lit) (string= lit ""))
+             (error "lexer literal cannot be empty string"))
+            ((stringp lit)
+             (coerce lit 'list))
+            (t (list lit)))
+          (car rule)
+          (cadr rule))))
+
+(defun compare-node (a b)
+  (compare-char-lists (car a) (car b)))
+
+(defun next-char-in-node (node)
+  (when (car node)
+    (caar node)))
+
+(defun node-advance-char (node)
+  (when (car node)
+    (pop (car node))
+    (caar node)))
+
+(defun literal-rules-to-tree (lit-rules)
+  "Converts a list of literal lexing rules into a tree format, suitable for
+generating a parser.
+
+Roughly, returns a <node-list>, where:
+
+<node-list> := (list of <node>)
+
+<node> := (list <character>
+                [ nil | (list :keyword \"literal\") ]
+                . <node-list>)"
+  (let* ((char-lists (mapcar #'literal-rule-to-node lit-rules))
+         (sorted-char-lists (sort char-lists #'compare-node)))
+    (labels ((consume-while-letter (lst letter)
+               (cond
+                 ((null lst) (values nil nil))
+                 ((eq letter (next-char-in-node (car lst)))
+                  (node-advance-char (car lst))
+                  (multiple-value-bind (let-lst rst)
+                      (consume-while-letter (cdr lst) letter)
+                    (values (cons (car lst)
+                                  let-lst)
+                            rst)))
+                 (t (values nil lst))))
+
+             (expand-letter-step (lst)
+               (let ((this-node (car lst)))
+                 (if (next-char-in-node this-node)
+                     (cons nil (construct-tree lst))
+                     (cons (cdr this-node) (construct-tree (cdr lst))))))
+
+             (construct-tree (lst)
+               (if (null lst) nil
+                   (let* ((this-node (car lst))
+                          (this-char (next-char-in-node this-node)))
+                     (multiple-value-bind (this-letter rst)
+                         (consume-while-letter lst this-char)
+                       (cons (cons this-char (expand-letter-step this-letter))
+                             (construct-tree rst)))))))
+      (construct-tree sorted-char-lists))))
+
+(defun literal-body-from-tree (tree loc-name)
+  (labels ((gen-body-loop (default others)
+             (let* ((new-char-name (gensym "new-char"))
+                    (conclusion
+                     (when default `(values ,@default ,loc-name)))
+                    (children-action
+                     (when others
+                       `(case ,new-char-name
+                            ,@(loop for node in others
+                                 collect
+                                   (list (car node)
+                                         (gen-body-loop
+                                             (cadr node)
+                                             (cddr node))))
+                          (otherwise (fail ,new-char-name))))))
+
+               (if (and conclusion (not children-action))
+                   conclusion
+                   `(let ((,new-char-name (next)))
+                      ,(cond
+                        ((and (not conclusion)
+                              (not children-action))
+                         (error "???"))
+                        ((not conclusion)
+                         children-action)
+                        (t
+                         `(handler-case
+                              ,children-action
+                            (parse-failure ()
+                              ,conclusion)))))))))
+    (gen-body-loop nil tree)))
+
 (defun make-literal-lexer-body (literals loc-name)
-  (let ((char-name (gensym "new-char")))
-    `(let ((,char-name (next)))
-       (case ,char-name
-         ,@(loop for rule in literals
-              collect
-                (let ((rule-name (car rule))
-                      (lit (cadr rule)))
-                  (assert (null (cddr rule)))
-                  (when (stringp lit)
-                    (error "unimplemented"))
-                  `(,lit (values ,rule-name ,lit ,loc-name))))
-         (otherwise (fail ,char-name))))))
+  (literal-body-from-tree (literal-rules-to-tree literals)
+                          loc-name))
 
 (defun make-literal-lexer (name literals literal-parser-name)
   "Generates the definition for a parser, based on a set of lexer tokens defined
 as literals."
   (declare (ignorable name literals))
-  ;; TODO implement
   (let* ((loc-name (gensym "start-loc"))
          (parser-body (make-literal-lexer-body literals loc-name)))
     `(,literal-parser-name ()
-       (make-parser ',literal-parser-name ((,loc-name :location))
-         ,parser-body))))
+                           (make-parser ',literal-parser-name ((,loc-name :location))
+                                        ,parser-body))))
 
 (defun make-lexer-terminal-definitions (name literals rules)
   "Generates the functions, inside (labels), for use in a lexer definition."
