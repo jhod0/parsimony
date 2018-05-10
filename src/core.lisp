@@ -183,9 +183,13 @@
     (parse-failure (err)
       (restart-case
           (error err)
-        (print-parser-backtrace ()
+        (print-backtrace ()
           :report "Print a backtrace of the parser failure."
-          (print-parse-failure-backtrace err))))))
+          (print-parse-failure-backtrace err))
+        (print-backtrace-reraise ()
+          :report "Print a backtrace, and reraise the failure."
+          (print-parse-failure-backtrace err)
+          (error err))))))
 
 (defmacro parse-loop ((&optional context) parsers &rest body)
   `(handler-case
