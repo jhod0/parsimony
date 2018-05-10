@@ -56,11 +56,30 @@ Returns (values literal-rules complex-rules)"
           (values literals
                   (cons this-rule full-rules))))))
 
-(defun make-literal-lexer (name literals)
+(defun make-literal-lexer-body (literals loc-name)
+  (let ((char-name (gensym "new-char")))
+    `(let ((,char-name (next)))
+       (case ,char-name
+         ,@(loop for rule in literals
+              collect
+                (let ((rule-name (car rule))
+                      (lit (cadr rule)))
+                  (assert (null (cddr rule)))
+                  (when (stringp lit)
+                    (error "unimplemented"))
+                  `(,lit (values ,rule-name ,lit ,loc-name))))
+         (otherwise (fail ,char-name))))))
+
+(defun make-literal-lexer (name literals literal-parser-name)
   "Generates the definition for a parser, based on a set of lexer tokens defined
 as literals."
+  (declare (ignorable name literals))
   ;; TODO implement
-  (error "unimplemented"))
+  (let* ((loc-name (gensym "start-loc"))
+         (parser-body (make-literal-lexer-body literals loc-name)))
+    `(,literal-parser-name ()
+       (make-parser ',literal-parser-name ((,loc-name :location))
+         ,parser-body))))
 
 (defun make-lexer-terminal-definitions (name literals rules)
   "Generates the functions, inside (labels), for use in a lexer definition."
@@ -70,7 +89,8 @@ as literals."
                  rules)))
     (if (null literals)
         full-rule-definitions
-        (cons (make-literal-lexer name literals)
+        (cons (make-literal-lexer name literals
+                                  (make-lexer-name name :literals))
               full-rule-definitions))))
 
 (defmacro deflexer (name &key documentation whitespace terminals)
@@ -80,10 +100,12 @@ terminals."
   (multiple-value-bind (literal-rules full-rules)
       (partition-lexer-rules terminals)
     ;; Name all of the lexers, and generate the core parser expression
-    (let* ((terminal-names (mapcar #'(lambda (n) (the keyword (car n)))
-                                   full-rules))
-           (lexer-names (mapcar #'(lambda (term) (make-lexer-name name term))
-                                terminal-names))
+    (let* ((terminal-names (loop for n in full-rules
+                                collect (the keyword (car n))))
+           (literal-names (loop for n in literal-rules
+                               collect (the keyword (car n))))
+           (lexer-names (loop for term in terminal-names
+                             collect (make-lexer-name name term)))
            (literal-lexer-name (make-lexer-name name :literals))
            (parser-core `(alternative
                           ,@(when literal-rules
@@ -99,7 +121,7 @@ terminals."
            (defparameter ,name
              (make-lexer-struct :name ',name
                                 :documentation ,documentation
-                                :terminals (list ,@terminal-names)
+                                :terminals (list ,@(append literal-names terminal-names))
                                 :parser
                                 ,(if whitespace
                                      `(make-parser ',name ((:ignore (parse-many ,whitespace)))
