@@ -7,11 +7,13 @@
   (member c (coerce "0123456789" 'list)))
 
 (defparser parse-digit () ()
+  "Parses a single digit character."
   (if (digitp (peek))
     (- (char-int (next)) (char-int #\0))
     (fail (peek))))
 
 (defparser parse-int () ()
+  "Parses an integer, fails if the next input is not a digit."
   (let ((p (parse-digit)))
     (do ((d (eval-in-context p) (eval-in-context p :raise nil))
          (n 0))
@@ -20,10 +22,12 @@
       (incf n d))))
 
 (defparser parse-char (c) ()
+  "Fails if the next char in input is not `c`."
   (if (eq (peek) c)
       (next) (fail (peek))))
 
 (defparser parse-eof () ()
+   "Fails if input is not at EOF."
    (let ((c (next)))
      (unless (eq c :eof)
        (fail c))
@@ -33,6 +37,7 @@
   ((big (parse-int))
    (:ignore (parse-char #\.))
    (little (parse-int)))
+  "Parses a float, in the form \"<digits>.<digits>\"."
   (labels ((decimal (n)
              (if (< n 1)
                  n
@@ -40,6 +45,7 @@
     (+ big (decimal (coerce little 'float)))))
 
 (defparser one-of (lst) ()
+  "Fails if the next token of input is not in `lst`."
   (let ((c (next)))
     (if (member c (coerce lst 'list))
       c

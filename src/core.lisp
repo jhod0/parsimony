@@ -250,8 +250,12 @@
                (parse-failure-propogate self err %starting-location%))))))))
 
 (defmacro defparser (name args parsers &rest body)
-  (let ((tmp (gensym)))
+  (let* ((tmp (gensym))
+         docstring)
+    (when (stringp (car body))
+      (setf docstring (pop body)))
     `(defun ,name ,args
+       ,@(when docstring (list docstring))
        (let ((,tmp (make-parser ',name ,parsers ,@body)))
          (setf (parser-args ,tmp)
                (list ,@(remove-if (lambda (arg)
