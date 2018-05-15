@@ -21,17 +21,17 @@
       (setf n (* n 10))
       (incf n d))))
 
-(defparser parse-char (c) ()
+(defparser parse-char (c) ((cin :next))
   "Fails if the next char in input is not `c`."
-  (if (eq (peek) c)
-      (next) (fail (peek))))
+  (if (eq cin c)
+      c
+      (fail cin)))
 
-(defparser parse-eof () ()
+(defparser parse-eof () ((c :next))
    "Fails if input is not at EOF."
-   (let ((c (next)))
-     (unless (eq c :eof)
-       (fail c))
-     :eof))
+   (if (eq c :eof)
+     :eof
+     (fail c)))
 
 (defparser parse-float ()
   ((big (parse-int))
@@ -44,9 +44,8 @@
                  (decimal (/ n 10)))))
     (+ big (decimal (coerce little 'float)))))
 
-(defparser one-of (lst) ()
+(defparser one-of (lst) ((c :next))
   "Fails if the next token of input is not in `lst`."
-  (let ((c (next)))
-    (if (member c (coerce lst 'list))
-      c
-      (fail c))))
+  (if (member c (coerce lst 'list))
+    c
+    (fail c)))

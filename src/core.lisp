@@ -286,10 +286,11 @@ Example:
                       ,@forms))
              forms))
         (parse
-          (if (eq parser :location)
-            '(location)
-            `(%do-eval-parser ,parser ,@(when input `(:input ,input))
-                             ,@args))))
+          (cond
+            ((eq parser :location) '(location))
+            ((eq parser :next) '(next))
+            (t `(%do-eval-parser ,parser ,@(when input `(:input ,input))
+                                 ,@args)))))
     (cond
       ((eq pattern :ignore)
         `(progn ,parse ,@continuation))
