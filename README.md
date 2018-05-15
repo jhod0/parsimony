@@ -91,11 +91,10 @@ Examples:
 
 ```lisp
 ;; Creates a parser which accepts any single character except 'a'
-(prs:make-parser :my-silly-parser ()
-  (let ((c (prs:next)))
-    (if (not (eq c #\a))
-        c
-        (prs:fail c))))
+(prs:make-parser :my-silly-parser ((c :next))
+  (if (not (eq c #\a))
+      c
+      (prs:fail c)))
 
 ;; The same could be accomplished via:
 (prs:fulfills (lambda (c) (not (eq c #\a))))
