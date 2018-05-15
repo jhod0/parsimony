@@ -12,7 +12,7 @@ Parsers are created via `make-parser` or `defparser`, and are used via `eval-par
 
 ### Evaluating Parsers
 
-The function `eval-parser` accepts the keywords `:input`, `:catcch`, `:raise`, and `:default`.
+The function `eval-parser` accepts the keywords `:input`, `:catch`, `:raise`, and `:default`.
 
 ```lisp
 CL-USER> (prs:eval-parser (prs:parse-int))
@@ -80,7 +80,12 @@ invalid
 
 The macro `make-parser` constructs a parser literal, and `defparser` defines a named parser to be used in the future.
 
-Four functions are made available inside the body of `make-parser` and `defparser`: `next`, `peek`, `recurse`, and `fail`. The first two accept zero arguments, and yield the next object in the input stream, the third attempts the parser again and returns its result, and the last accepts a single argument and triggers a `parse-failure` with its argument as the cause of failure.
+Four functions are made available inside the body of `make-parser` and `defparser`: `next`, `peek`, `recurse`, and `fail`.
+
+1. `next` : Returns the next element in the stream and advances. Function with zero arguments.
+2. `peek` : Returns the next element in the input stream, without advancing.
+3. `recurse` : Applies the current parser again and returns its result. Useful for, e.g., parsing lists, look for examples in [src/combinators.lisp](src/combinators.lisp). Accepts any of the keyword arguments that go to `eval-parser`.
+4. `fail` : Makes sure the parse fails, by triggering a `parse-failure` condition. Does not return. Accepts a single argument, the input which caused a failure.
 
 Examples:
 
@@ -111,6 +116,37 @@ Examples:
 
 ## Lexers and Grammars
 
-Look to `examples/grammars.lisp` for examples.
+The `deflexer` and `defgrammar` do just that - define lexers and grammars. A lexer identifies tokens in an input stream, and a grammar interprets a string of provided by a lexer. In `parsimony` both tokens and grammar targets - terminals and nonterminals, respectively, in comman `yacc` parlance - are described by keywords.
+
+Look to `examples/grammars.lisp` for examples of both.
+
+### Lexers
+
+A lexer splits an incoming stream into tokens. `parsimony` tokens are defined by keywords. For a programming language, tokens are often things like `:integer`, `:open-parenthesis`, `keyword-for`. Frequently, an incoming stream is a character stream, such as a file being read, but `parsimony` lexers could accept a custom stream.
+
+Example:
+
+```lisp
+(prs:deflexer dummy-lexer
+  :documentation "Test a dummy lexer"
+  ;; Only whitespace is the space character. You can use any arbitrary parser
+  ;; for this - a frequent case would include tabs and newline characters.
+  :whitespace (prs:parse-char #\space)
+  :terminals
+  (;; The first two terminals use single parsers.
+   (:float (prs:parse-float))
+   (:int (prs:parse-int))
+   ;; Character literal
+   (:newline #\newline)
+   ;; String literal
+   (:not-my-cabbages "Not my cabbages!!!")
+   ;; Full parser - the ((name ...)) is used as an argument to `with-parsed`,
+   ;; and `(coerce name 'string)` is the body of this terminal.
+   (:ident ((name
+             (prs:parse-some (prs:one-of "abcdefghijklmnopqrstuvwxyz"))))
+           (coerce name 'string))))
+```
+
+### Grammars
 
 TODO flesh out
