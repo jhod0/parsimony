@@ -44,7 +44,7 @@ otherwise fails.
 If `parser` is provided, `fulfills` will use the result of `parser` in place of
 the next object in the stream."
   (let ((obj (if parser
-                 (eval-in-context parser :raise nil)
+                 (eval-in-context parser)
                  (next))))
     (if (funcall predicate obj)
         obj
@@ -66,10 +66,10 @@ Examples:
 ;; => '(2 4 42 68)
 "
   (let ((obj (if parser
-                 (eval-in-context parser :raise nil)
+                 (eval-in-context parser)
                  (next))))
     (when (funcall predicate obj)
-      (cons obj (recurse)))))
+      (cons obj (recurse :raise nil :default nil)))))
 
 (defparser parse-until (parser) ((e parser :raise nil))
   (if (eq e :noparse)

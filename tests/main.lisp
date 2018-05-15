@@ -174,7 +174,7 @@
         #'=)
        ((format nil "~d ~d ~d" n1 n2 n3) (+ n1 n2 n3)))))
 
-#|  (for-all ((n1 (gen-integer :min 0))
+  (for-all ((n1 (gen-integer :min 0))
             (n2 (gen-integer :min 0)))
     (check-parse-results
      ((prs:pmap #'cons
@@ -185,8 +185,7 @@
         (and (consp a) (consp b)
              (= (car a) (car b))
              (= (cdr a) (cdr b)))))
-     ((format nil "~d,~d" n1 n2) (cons n1 n2))))
-|#)
+     ((format nil "~d,~d" n1 n2) (cons n1 n2)))))
 
 (test test-int-not-float
   :documentation "Tests Alternative with ints and floats"
@@ -204,7 +203,50 @@
     (for-all ((n (gen-integer :min 0)))
       (if (evenp n)
           (check-result (format nil "~d" n) n)
-        (check-fails (format nil "~d" n))))))
+          (check-fails (format nil "~d" n))))
+    (for-all ((str (gen-string
+                    :elements
+                    (gen-character
+                     :code (gen-integer
+                            :min (1+ (char-code #\9))
+                            :max (1- char-code-limit))))))
+             (check-fails (format nil "~d" str)))))
+
+(test test-while-fulfills
+  :documentation "Tests the while-fulfills combinator."
+
+  ;; Generates lists of integers, like "1234 32 231 1234",
+  ;; and checks for evens
+  (labels ((list-eq (a b)
+             (if (or (null a) (null b))
+                 (and (null a) (null b))
+                 (and (= (car a) (car b))
+                      (list-eq (cdr a) (cdr b)))))
+           (list-to-string (lst)
+             (if (= 1 (length lst))
+                 (format nil "~d" (car lst))
+                 (concatenate 'string
+                              (format nil "~d " (car lst))
+                              (list-to-string (cdr lst)))))
+           (take-while (pred lst)
+             (cond
+               ((null lst) nil)
+               ((funcall pred (car lst))
+                (cons (car lst) (take-while pred (cdr lst))))
+               (t nil))))
+
+    (let ((*cur-parser* (prs:while-fulfills
+                         #'evenp
+                         (prs:make-parser
+                          nil ((int (prs:parse-int))
+                               (:ignore (prs:maybe (prs:parse-char #\space))))
+                          int)))
+          (*check-function* #'list-eq))
+      (for-all ((lst
+                 (gen-list :length (gen-integer :min 1 :max 1000)
+                           :elements (gen-integer :min 0 :max 1000000))))
+        (let ((str (list-to-string lst)))
+          (check-result str (take-while #'evenp lst)))))))
 
 (test test-expect-literal
   :description "Tests searching for a string literal"
