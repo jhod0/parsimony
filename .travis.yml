@@ -12,8 +12,8 @@ install:
 
 script:
   - cl -l fiveam
-       -e '(setf fiveam:*on-error* t
-                 fiveam:*on-failure* t)'
+       -e '(setf fiveam:*on-error* :debug
+                 fiveam:*on-failure* :debug)'
        -e '(setf *debugger-hook*
                  (lambda (car cdr)
                    (declare (ignore car cdr))
