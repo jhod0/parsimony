@@ -4,7 +4,7 @@ A simple, frugal, Common Lisp library for building and using parsers, with zero 
 
 Parsimony's core are utilities for creating and executing monadic parsers, and includes a number of parser combinators. Parser input streams are abstracted such that an input stream could be a stream of characters, bytes, or any arbitrary Lisp type.
 
-Built on this core are facilities for defining lexers and defining grammars. See below.
+Built on this core are facilities for defining lexers and grammars. See below.
 
 ## Parsimony Core
 
@@ -115,30 +115,37 @@ Examples:
 
 ## Lexers and Grammars
 
-The `deflexer` and `defgrammar` do just that - define lexers and grammars. A lexer identifies tokens in an input stream, and a grammar interprets a string of provided by a lexer. In `parsimony` both tokens and grammar targets - terminals and nonterminals, respectively, in comman `yacc` parlance - are described by keywords.
+The `deflexer` and `defgrammar` do just that - define lexers and grammars. A lexer identifies tokens in an input stream, and a grammar interprets a string of provided by a lexer. In `parsimony` both tokens and grammar targets - terminals and nonterminals, respectively, in common `yacc` parlance - are described by keywords.
 
 Look to `examples/grammars.lisp` for examples of both.
 
 ### Lexers
 
-A lexer splits an incoming stream into tokens. `parsimony` tokens are defined by keywords. For a programming language, tokens are often things like `:integer`, `:open-parenthesis`, `keyword-for`. Frequently, an incoming stream is a character stream, such as a file being read, but `parsimony` lexers could accept a custom stream.
+A lexer splits an incoming stream into tokens. `parsimony` tokens are defined by keywords. For a programming language, tokens are often things like `:integer`, `:open-parenthesis`, `:keyword-for`. Frequently, an incoming stream is a character stream, such as a file being read, but `parsimony` lexers could accept a custom stream.
+
+The `deflexer` macro generates a parser which scans its input stream in search of the defined terminals. If it finds one, it returns `(values tok val loc)`, where `tok` is the terminal found (e.g. `:integer`), `val` is its value (e.g. `3`), and `loc` the location at which the first character of this token was found. The `loc` will be `nil` if the stream does not provide an implementation of `stream-location`.
 
 Example:
 
 ```lisp
 (prs:deflexer dummy-lexer
   :documentation "Test a dummy lexer"
-  ;; Only whitespace is the space character. You can use any arbitrary parser
+
+  ;; All spaces between tokens will be ignored. You can use any arbitrary parser
   ;; for this - a frequent case would include tabs and newline characters.
   :whitespace (prs:parse-char #\space)
+
   :terminals
   (;; The first two terminals use single parsers.
    (:float (prs:parse-float))
    (:int (prs:parse-int))
+
    ;; Character literal
    (:newline #\newline)
+
    ;; String literal
    (:not-my-cabbages "Not my cabbages!!!")
+
    ;; Full parser - the ((name ...)) is used as an argument to `with-parsed`,
    ;; and `(coerce name 'string)` is the body of this terminal.
    (:ident ((name
