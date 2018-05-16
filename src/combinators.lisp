@@ -65,11 +65,13 @@ Examples:
 ;; On input \"2 4 42 68 3 7 9\"
 ;; => '(2 4 42 68)
 "
-  (let ((obj (if parser
-                 (eval-in-context parser)
-                 (next))))
-    (when (funcall predicate obj)
-      (cons obj (recurse :raise nil :default nil)))))
+  (let (out
+        (prsr (or parser (make-parser nil ((a :next)) a))))
+    (parse-loop-in-context ((obj prsr))
+      (if (funcall predicate obj)
+        (push obj out)
+        (fail obj)))
+    (nreverse out)))
 
 (defparser parse-until (parser) ((e parser :raise nil))
   (if (eq e :noparse)

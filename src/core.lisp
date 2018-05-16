@@ -197,7 +197,10 @@
           (with-parsed ,(when context (list context))
                        ,parsers
                        ,@body))
-    (parse-failure () (values))))
+     (parse-failure () (values))))
+
+(defmacro parse-loop-in-context (parsers &rest body)
+  `(parse-loop (ctxt) ,parsers ,@body))
 
 (defmacro make-parser (name parsers &rest body)
   "Macro which constructs a parser, with the given name, which will conduct the action given in BODY"

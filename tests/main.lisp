@@ -243,7 +243,7 @@
                           int)))
           (*check-function* #'list-eq))
       (for-all ((lst
-                 (gen-list :length (gen-integer :min 1 :max 1000)
+                 (gen-list :length (gen-integer :min 0 :max 1000)
                            :elements (gen-integer :min 0 :max 1000000))))
         (let ((str (list-to-string lst)))
           (check-result str (take-while #'evenp lst)))))))

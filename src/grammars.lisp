@@ -101,11 +101,11 @@
           :nonterminals (list
                          ,@(loop for nt in new-parser-names
                                  collect `(cons ,(car nt)
-                                                (,(cdr nt)))))
+                                                #',(cdr nt))))
           :lexer ,lexer
           :default-entry ,default-entry)))))
 
-(defun get-grammar-parser (grammar &optional target)
+(defun get-grammar-parser (grammar &optional target &rest extra-args)
   (with-slots (default-entry terminals
                nonterminals lexer)
       grammar
@@ -113,11 +113,11 @@
     (let ((nonterm (assoc target nonterminals))
           (term (member target terminals)))
       (cond
-       (nonterm (cdr nonterm))
-       (term (make-parser target (((tok tokval) lexer))
-               (unless (eq tok target) (fail tok))
-               tokval))
-       (t (error (format nil "no such target: ~a" target)))))))
+        (nonterm (apply (cdr nonterm) extra-args))
+        (term (make-parser target (((tok tokval) lexer))
+                (unless (eq tok target) (fail tok))
+                tokval))
+        (t (error (format nil "no such target: ~a" target)))))))
 
 (defun parse-grammar (grammar &key target (input *default-parse-input*)
                               catch-failure (raise t) (default :noparse))
