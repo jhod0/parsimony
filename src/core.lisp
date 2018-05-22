@@ -90,12 +90,14 @@
     (format stream "#<PRS:PARSER named: ~a>" (parser-name obj))))
 
 ;; input stream -> context
+(declaim (inline new-parse-context))
 (defun new-parse-context (input)
   "Constructs a new parser context which will parse the given input stream"
   (make-parse-context :framecount 0 :stacks nil
                       :input-stream input))
 
 ;; context -> frameID
+(declaim (inline new-parser-frame))
 (defun new-parser-frame (ctxt)
   (declare (type parse-context ctxt))
   (push (cons (incf (pc-framecount ctxt)) nil)
@@ -217,7 +219,6 @@
                (%starting-location% (stream-location %input%))
                (%recent-location% %starting-location%))
           (declare (type fixnum %cur-frame%))
-          ;;(format t "started parser ~a at loc ~a~%" self %starting-location%)
           ;; Create helper functions which may be used in
           ;; the body
           (flet ((peek () (peek-stream %input% ctxt))
@@ -234,7 +235,8 @@
                     (declare (type boolean raise))
                     (eval-in-context self :raise raise :default default)))
             (declare (ignore (function peek) (function next)
-                             (function location) (function fail)))
+                             (function location) (function fail)
+                             (function recurse)))
 
             ;; Actually execute the parser
             (handler-case

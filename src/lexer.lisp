@@ -212,23 +212,28 @@ terminals."
                           ,@(when literal-rules
                                   (list `(,literal-lexer-name)))
                           ,@(mapcar #'(lambda (name) `(,name))
-                                    lexer-names))))
+                                    lexer-names)))
+           (parser-core-name (gensym "parser-core"))
+           (whitespace-parser-name (gensym "whitespace")))
 
       ;; Form to return
       `(eval-when (:compile-toplevel :load-toplevel)
          (labels
              ,(make-lexer-terminal-definitions
-                 name literal-rules full-rules)
-           (defparameter ,name
-             (make-lexer-struct :name ',name
-                                :documentation ,documentation
-                                :terminals (list ,@(append literal-names terminal-names))
-                                :parser
-                                ,(if whitespace
-                                     `(make-parser ',name ((:ignore (parse-many ,whitespace)))
-                                                   (eval-in-context
-                                                    ,parser-core))
-                                     parser-core))))))))
+               name literal-rules full-rules)
+           (let ((,whitespace-parser-name
+                  ,(when whitespace
+                         `(make-parser ',(make-lexer-name name :whitespace)
+                                       ((:ignore (parse-many ,whitespace))))))
+                 (,parser-core-name ,parser-core))
+             (declare (ignorable ,whitespace-parser-name))
+             (defparameter ,name
+               (make-lexer-struct :name ',name
+                                  :documentation ,documentation
+                                  :terminals (list ,@(append literal-names terminal-names))
+                                  :parser
+                                  (make-parser ',name ((:ignore ,whitespace-parser-name))
+                                               (eval-in-context ,parser-core-name))))))))))
 
 (defmacro lex (name &rest args)
   `(eval-parser (lexer-parser ,name) ,@args))
