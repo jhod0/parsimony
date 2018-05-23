@@ -216,7 +216,7 @@ terminals."
            (whitespace-parser-name (gensym "whitespace")))
 
       ;; Form to return
-      `(eval-when (:compile-toplevel :load-toplevel)
+      `(eval-when (:compile-toplevel :load-toplevel :execute)
          (labels
              ,(make-lexer-terminal-definitions
                name literal-rules full-rules)

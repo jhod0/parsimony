@@ -75,20 +75,32 @@
   (let* ((nonterminals (mapcar #'car rules))
          (new-parser-names (mapcar #'(lambda (nt) (cons nt (make-parser-name grammar-name nt)))
                                    nonterminals)))
-    `(eval-when (:compile-toplevel :load-toplevel)
+    `(eval-when (:compile-toplevel :load-toplevel :execute)
 
        ;; verify terminals and non-terminals
-       (let ((known-inputs (append (lexer-terminals ,lexer)
-                                   (list ,@nonterminals))))
-         (dolist (nonterminal ',(mapcar #'cdr rules))
-           (dolist (rule nonterminal)
-             (if (keywordp rule)
-                 (setf rule (list rule))
-               (setf rule (car rule)))
-             (dolist (input rule)
-               (if (keywordp input)
-                   (assert (member input known-inputs))
-                 (assert (member (car input) known-inputs)))))))
+       (eval-when (:compile-toplevel :execute)
+         (let ((known-inputs (append (lexer-terminals ,lexer)
+                                     (list ,@nonterminals))))
+           (dolist (nonterminal ',rules)
+             (dolist (rule (cdr nonterminal))
+               (if (keywordp rule)
+                   (setf rule (list rule))
+                   (setf rule (car rule)))
+               (dolist (input rule)
+                 (let ((target (if (keywordp input)
+                                   input
+                                   (car input))))
+                   (assert (member target known-inputs)
+                           ()
+                           "In expansion of lexer ~s, target ~s, rule ~s:
+Target ~s is not a known terminal or nonterminal.
+
+Available terminals: ~s
+Available nonterminals: ~s"
+                           ',grammar-name (car nonterminal) rule
+                           target
+                           (lexer-terminals ,lexer)
+                           (list ,@nonterminals))))))))
 
        ,@(loop for nt in nonterminals
                collect (create-grammar-parser
