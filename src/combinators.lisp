@@ -1,6 +1,5 @@
 ;; ======= Parser Combinators =======
-
-(in-package :parsimony)
+(in-package :parsimony/core)
 
 
 (defparser alternative (parser &rest parsers) ()

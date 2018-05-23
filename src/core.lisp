@@ -1,4 +1,4 @@
-(in-package :parsimony)
+(in-package :parsimony/core)
 
 (defgeneric get-stream (stream ctxt)
   (:documentation "Take an object from a stream. Like gray streams, yields object or :eof."))
@@ -119,12 +119,12 @@
     (setf (pc-stacks ctxt)
           (do-unwind (pc-stacks ctxt)))))
 
-(defun push-obj (obj ctxt)
+(defun push-obj-to-context (obj ctxt)
   "Pushes an object to the parser context's stack"
   (declare (type parse-context ctxt))
   (push obj (cdar (pc-stacks ctxt))))
 
-(defun pop-obj (ctxt)
+(defun pop-obj-from-context (ctxt)
   "Pops an object from the parser context's stack"
   (declare (type parse-context ctxt))
   (pop (cadr (pc-stacks ctxt))))
@@ -139,7 +139,7 @@
 (defmethod get-stream ((s stream) (ctxt parse-context))
   (let ((c (get-stream s nil)))
     (unless (eq c :eof)
-      (push-obj c ctxt))
+      (push-obj-to-context c ctxt))
     c))
 
 (defmethod put-stream (obj (s stream))

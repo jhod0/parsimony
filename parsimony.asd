@@ -10,8 +10,10 @@
                              (:file "combinators")
                              (:file "util-parsers")
                              (:file "file-io")
-                             (:file "lexer")
-                             (:file "grammars"))))
+                             (:module "compiler"
+                              :serial t
+                              :components ((:file "lexer")
+                                           (:file "grammars"))))))
   :in-order-to ((test-op (test-op :parsimony/tests))))
 
 (defsystem parsimony/examples

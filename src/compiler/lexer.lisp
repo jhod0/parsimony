@@ -1,5 +1,4 @@
-
-(in-package :parsimony)
+(in-package :parsimony/lexer-compiler)
 
 
 (defstruct (lexer (:constructor make-lexer-struct))
@@ -288,7 +287,7 @@ on the lexer-stream returned from this function."
 
 (defmethod get-stream ((s lexer-stream) (ctxt parse-context))
   (multiple-value-bind (tok val loc) (get-stream s nil)
-    (push-obj (list tok val loc) ctxt)
+    (push-obj-to-context (list tok val loc) ctxt)
     (values tok val loc)))
 
 (defmethod put-stream (obj (s lexer-stream))

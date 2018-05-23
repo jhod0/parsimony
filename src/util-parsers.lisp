@@ -1,6 +1,4 @@
-
-
-(in-package :parsimony)
+(in-package :parsimony/core)
 
 
 (defun digitp (c)

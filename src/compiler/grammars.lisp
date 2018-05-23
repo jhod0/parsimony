@@ -1,5 +1,5 @@
 
-(in-package :parsimony)
+(in-package :parsimony/grammar-compiler)
 
 
 (defstruct (grammar (:constructor make-grammar-struct))

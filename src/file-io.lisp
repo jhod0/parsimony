@@ -1,4 +1,4 @@
-(in-package :parsimony)
+(in-package :parsimony/core)
 
 ;; Simple structure to represent a location in a file
 (defstruct (file-location (:conc-name :fl-))
