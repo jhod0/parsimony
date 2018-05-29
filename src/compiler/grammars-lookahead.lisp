@@ -11,7 +11,7 @@
   (arguments nil :type list)
   (body nil :type list))
 
-(defstruct decision-tree
+(defstruct (decision-tree (:constructor make-decision-tree-raw))
   (nonterminal nil :type keyword)
   (transitions nil :type list)
   (finish nil :type (or grammar-rule null)))
@@ -96,17 +96,79 @@ association list of association lists, mapping
 ;; A decision tree is a simple representation of the state machine for determining
 ;; whether input fits a grammar, and what rules to invoke on the input.
 
+(defun symbol< (a b)
+  (string< (symbol-name a) (symbol-name b)))
+
+(defun symbol-list< (a b)
+  (cond
+    ((and (null a) (null b))
+     nil)
+    ((or (null a) (null b)) (null b))
+    ((eq (car a) (car b))
+     (symbol-list< (cdr a) (cdr b)))
+    (t (symbol< (car a) (car b)))))
+
+(defun take-while-current-transition (trans rules)
+  (cond
+    ((null rules) (values nil nil))
+    ((null (caar rules))
+     (values (list (car rules))
+             (cdr rules)))
+    ((eq (caaar rules) trans)
+     (multiple-value-bind
+           (yes no)
+         (take-while-current-transition trans (cdr rules))
+       (values (cons (car rules) yes)
+               no)))
+    (t (values nil rules))))
+
+(defun do-make-tree-from-sorted (target sorted)
+  (let ((node (make-decision-tree-raw :nonterminal target)))
+    (with-slots (transitions finish) node
+      (labels ((go! (rules)
+                 (cond
+                   ((null rules) (values))
+                   ((null (caar rules))
+                    (setf finish (cdar rules))
+                    (assert (null (cdr rules))))
+                   (t
+                    (let ((cur-trans (caaar rules)))
+                      (multiple-value-bind (yes no)
+                          (take-while-current-transition cur-trans rules)
+                        (push (cons cur-trans
+                                    (do-make-tree-from-sorted target
+                                      (loop for a in yes
+                                         if (car a)
+                                         collect (cons (cdar a)
+                                                       (cdr a)))))
+                              transitions)
+                        (go! no)))))))
+        (go! sorted))
+      (reverse transitions)
+      node)))
+
+(defun make-decision-tree (target rules)
+  "Construct a decision tree for a single nonterminal."
+  (let* ((rules-with-paths
+          (loop for rule in rules
+             collect (cons (grammar-rule-inputs (cdr rule))
+                           (cdr rule))))
+         ;; Sort all the rules by the path taken
+         (sorted-rules
+          (sort rules-with-paths
+                (lambda (a b)
+                  (symbol-list< (car a) (car b))))))
+    (do-make-tree-from-sorted target sorted-rules)))
+
 (defun interned-rules-to-trees (rules)
   "Creates a decision tree for each nonterminal target, given the sorted rules
 from INTERN-ALL-RULES. Returns an association list mapping nonterminal
 keywords to DECISION-TREE structs."
-  (labels ((make-decision-tree (target rules)
-             (error "unimplemented")))
-    (loop for group in rules
-       collect (cons (car group)
-                     (make-decision-tree
-                      (car group)
-                      (cdr group))))))
+  (loop for group in rules
+     collect (cons (car group)
+                   (make-decision-tree
+                    (car group)
+                    (cdr group)))))
 
 
 ;; ===========================
@@ -118,11 +180,14 @@ keywords to DECISION-TREE structs."
 
 (defun make-compile-time-grammar (name terminals nonterminals default-entry rules)
   "Creates a GRAMMAR-COMPILE-TIME-DEFINITION for internal compiler use."
+  (declare (ignore name terminals nonterminals default-entry rules))
   (let ()
+    #|
     (make-grammar-compile-time-definition
      :name name
      :terminals terminals
      :nonterminals nonterminals
      :default-entry default-entry
      :rules (error "unimplemented")
-     :trees (error "unimplemented"))))
+     :trees (error "unimplemented"));
+|#))
