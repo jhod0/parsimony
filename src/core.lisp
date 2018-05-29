@@ -204,6 +204,15 @@
 (defmacro parse-loop-in-context (parsers &rest body)
   `(parse-loop (ctxt) ,parsers ,@body))
 
+(defmacro save-stream-position (&rest body)
+  "Saves the current parser stack position, and when BODY is finished executing
+restores the input stream to the position it was before BODY"
+  (let ((tmp-frame (gensym "save-frame")))
+    `(let ((,tmp-frame (new-parser-frame ctxt)))
+       (unwind-protect
+            (progn ,@body)
+         (unwind-until ,tmp-frame ctxt)))))
+
 (defmacro make-parser (name parsers &rest body)
   "Macro which constructs a parser, with the given name, which will conduct the action given in BODY"
   `(make-parser-raw

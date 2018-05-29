@@ -1,4 +1,3 @@
-
 (in-package :parsimony/grammar-compiler)
 
 
@@ -9,7 +8,6 @@
   (lexer (error "needs lexer") :type lexer)
   (default-entry (error "default entry required")
     :type symbol))
-
 
 (defun make-parser-name (grammar-name rule-name)
   (intern (concatenate 'string

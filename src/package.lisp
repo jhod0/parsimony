@@ -1,5 +1,6 @@
 (defpackage :parsimony/core
   (:use :common-lisp)
+  (:nicknames :prs/core)
   (:export :get-stream :put-stream :peek-stream :stream-location
 
            :*default-parse-input*
@@ -14,7 +15,7 @@
            :parser
            :parse-context :push-obj-to-context :pop-object-from-context
            :eval-parser
-           :parse-loop
+           :parse-loop :save-stream-position
            :make-parser :defparser :ctxt :next :peek :fail :recurse
            :with-parsed
            :eval-in-context
@@ -32,11 +33,13 @@
 
 (defpackage :parsimony/lexer-compiler
   (:use :common-lisp :parsimony/core)
+  (:nicknames :prs/l-c)
   (:export :deflexer :lexer :get-lexer-parser :lexer-stream
            :lexer-terminals))
 
 (defpackage :parsimony/grammar-compiler
   (:use :common-lisp :parsimony/core :parsimony/lexer-compiler)
+  (:nicknames :prs/g-c)
   (:export :defgrammar :get-grammar :parse-grammar))
 
 (defpackage :parsimony
@@ -57,7 +60,7 @@
 
            ;; Core parsing utils
            :eval-parser
-           :parse-loop
+           :parse-loop :save-stream-position
            :make-parser :defparser :next :peek :fail :recurse
            :with-parsed
            :eval-in-context

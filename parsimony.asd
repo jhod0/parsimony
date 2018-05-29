@@ -13,7 +13,9 @@
                              (:module "compiler"
                               :serial t
                               :components ((:file "lexer")
-                                           (:file "grammars"))))))
+                                           (:file "grammars")
+                                           (:file "grammars-lookahead")
+                                           (:file "grammars-execute"))))))
   :in-order-to ((test-op (test-op :parsimony/tests))))
 
 (defsystem parsimony/examples
