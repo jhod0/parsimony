@@ -19,14 +19,31 @@
 (defparameter *check-function* #'eq)
 
 (defun check-result (input result &optional (eq *check-function*))
-  (let ((val (prs:eval-parser *cur-parser* :input input)))
-    (is (funcall eq val result)
-        "Expected ~s, parsed ~s" result val)))
+  (handler-bind
+      ((prs:parse-failure
+        #'(lambda (c)
+            (declare (ignore c))
+            (let ((restart (find-restart 'prs:print-backtrace-reraise)))
+              (format *error-output* "======~%Parse-failure on input ~s~%======~%" input)
+              (assert restart)
+              (invoke-restart restart)))))
+    (let ((val (prs:eval-parser *cur-parser* :input input)))
+      (is (funcall eq val result)
+          "Expected ~s, parsed ~s" result val))))
 
 (defun check-fails (input)
   (signals prs:parse-failure
            (prs:eval-parser *cur-parser* :input input)))
 
+(defun full-eq (a b)
+  (cond
+    ((symbolp a) (eq a b))
+    ((stringp a) (string= a b))
+    ((numberp a) (= a b))
+    ((characterp a) (eq a b))
+    ((consp a) (and (full-eq (car a) (car b))
+                    (full-eq (cdr a) (cdr b))))
+    (t (error "don't know how to compare ~s and ~s" a b))))
 
 (defmacro check-parse-results ((parser &optional checker) &rest checks)
   `(let ((*cur-parser* ,parser)
@@ -55,15 +72,11 @@
                      (((token value) ,parser))
            (let ((exp-tok (pop expected-toks))
                  (exp-tokval (pop expected-tokvals)))
-             (is (eq token exp-tok) "expected token ~a, got ~a"
+             (is (eq token exp-tok) "expected token ~s, got ~s"
                  exp-tok token)
              (when exp-tokval
-                 (is (funcall (cond
-                               ((typep value 'string) #'string=)
-                               ((typep value 'number) #'=)
-                               (t #'eq))
-                              value (car exp-tokval))
-                     "expected value ~a, got ~a" exp-tokval value))))
+                 (is (full-eq value (car exp-tokval))
+                     "expected value ~s, got ~s" (car exp-tokval) value))))
          (is (not expected-toks))
          (is (not expected-tokvals))))
      ,@(when others
@@ -93,15 +106,6 @@
                   (is (= (prs::fl-row loc) row))
                   (is (= (prs::fl-col loc) col)))))))
      ,@(when inputs (list `(check-lexer-locations ,lexer ,@inputs)))))
-
-(defun full-eq (a b)
-  (cond
-    ((symbolp a) (eq a b))
-    ((stringp a) (string= a b))
-    ((numberp a) (= a b))
-    ((consp a) (and (full-eq (car a) (car b))
-                    (full-eq (cdr a) (cdr b))))
-    (t (error "don't know how to compare ~a and ~a" a b))))
 
 (defmacro check-grammar (grammar (input expected &key target) &rest others)
   (let ((input-name (gensym))
@@ -290,6 +294,7 @@ hello there"
       (:ident "hello")
       (:ident "there")))))
 
+
 (test test-small-lexer
   :description "Test lexer for small grammar to come"
   (check-lexer (prs:get-lexer-parser prs/e:small-grammar-lexer)
@@ -299,11 +304,11 @@ hello there"
      (:open-brace (:integer 1) :pipe (:integer 2) :close-brace))
     ("[ :hello , 234, there, 5|:a]"
      (:open-brace :colon
-      (:ident "hello") :comma
+      (:ident '(:ident "hello")) :comma
       (:integer 234) :comma
-      (:ident "there") :comma
+      (:ident '(:ident "there")) :comma
       (:integer 5) :pipe :colon
-      (:ident "a") :close-brace))
+      (:ident '(:ident "a")) :close-brace))
     (" \"hey\" : = :     []()"
      ((:string "hey")
       :colon :equals :colon
@@ -385,19 +390,89 @@ type smallstring = packed array[1..20] of char;
     (with-input-from-string (s a)
       (prs:parse-grammar prs/e:small-grammar :input s))))
 
+(defun gen-small-grammar-obj (&optional (max-depth 10))
+  (let* ((elt (fiveam:gen-one-element
+               :integer :string :ident :symbol
+               :cons :list))
+         (gen-number (fiveam:gen-integer :min 0 :max 100000))
+         (gen-string (fiveam:gen-string
+                      :elements (fiveam:gen-character
+                                 :code (fiveam:gen-integer
+                                        :min (char-code #\A)
+                                        :max (char-code #\z)))))
+         (valid-ident-character
+          (lambda ()
+            (let ((n (funcall (fiveam:gen-integer :min 0
+                                                  :max (1- (* 2 26))))))
+              (if (< n 26)
+                  (code-char (+ (char-code #\a) n))
+                  (code-char (+ (char-code #\A) (- n 26)))))))
+         (ident (fiveam:gen-string
+                 :length (fiveam:gen-integer :min 1 :max 30)
+                 :elements valid-ident-character)))
+    (labels ((do-gen-obj (depth)
+               (ecase (funcall elt)
+                 (:integer (funcall gen-number))
+                 (:string (funcall gen-string))
+                 (:ident (list :ident (funcall ident)))
+                 (:symbol (list :symbol (funcall ident)))
+                 (:cons (unless (>= depth max-depth)
+                            (cons (do-gen-obj (1+ depth)) (do-gen-obj (1+ depth)))))
+                 (:list (unless (>= depth max-depth)
+                            (funcall (fiveam:gen-list
+                                      :elements
+                                      (lambda () (do-gen-obj (1+ depth))))))))))
+      #'(lambda () (do-gen-obj 0)))))
+
+(defun small-grammar-obj-to-string (obj)
+  (typecase obj
+    (fixnum (format nil "~s" obj))
+    (string (format nil "\"~a\"" obj))
+    (null "[]")
+    (cons
+     (case (car obj)
+       (:ident (cadr obj))
+       (:symbol (format nil ":~a" (cadr obj)))
+       (otherwise
+        (labels ((grammar-listp (obj)
+                   (and (consp obj)
+                        (not (eq (car obj) :ident))
+                        (not (eq (car obj) :symbol))))
+                 (list-to-string (obj)
+                   (cond
+                     ((null (cdr obj))
+                      (small-grammar-obj-to-string (car obj)))
+                     ((grammar-listp (cdr obj))
+                      (format nil "~a,~a"
+                              (small-grammar-obj-to-string (car obj))
+                              (list-to-string (cdr obj))))
+                     (t (format nil "~a|~a"
+                                (small-grammar-obj-to-string (car obj))
+                                (small-grammar-obj-to-string (cdr obj)))))))
+          (format nil "[~a]" (list-to-string obj))))))
+    (t (error "invalid grammar obj: ~s" obj))))
+
 (test test-simple-grammar
   :description "Test the simple grammar"
   (check-grammar prs/e:small-grammar
     ("32" 32)
     ("123.0" 123.0)
-    ("hello" "hello")
+    ("hello" '(:ident "hello"))
+    ("yHmCvvFmGv" '(:ident "yHmCvvFmGv"))
     ("\"hello\"" "hello")
     ("[]" nil)
     ("[ 1,2, 3, 4 ,5]" '(1 2 3 4 5))
     ("[1|2]" '(1 . 2))
     (":hello" '(:symbol "hello"))
     ("[:hi, :there, 1, 2, [], 453, [:a|:b]|artichoke]"
-     '((:symbol "hi") (:symbol "there") 1 2 () 453 ((:symbol "a") . (:symbol "b")) . "artichoke"))))
+     '((:symbol "hi") (:symbol "there") 1 2 () 453 ((:symbol "a") . (:symbol "b")) . (:ident "artichoke")))))
+
+(test test-generated-simple-grammar
+  :description
+  (for-all ((grammar-obj (gen-small-grammar-obj)))
+    (let ((as-string (small-grammar-obj-to-string grammar-obj)))
+      (check-grammar prs/e:small-grammar
+                     (as-string grammar-obj)))))
 
 (test test-pascal-grammar
   :description "Tests the simplified pascal grammar"

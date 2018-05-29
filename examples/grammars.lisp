@@ -24,7 +24,7 @@
              (str (prs:parse-until (prs:parse-char #\"))))
             (coerce str 'string))
    (:ident ((s (prs:parse-some (prs:one-of "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"))))
-           (coerce s 'string))
+           (list :ident (coerce s 'string)))
 
    (:open-brace #\[)
    (:close-brace #\])
@@ -63,7 +63,7 @@
           ;; Symbol - like Lisp keywords, a colon followed by an identifier
           (:symbol
            ((:colon (:ident id))
-            (list :symbol id)))))
+            (list :symbol (cadr id))))))
 
 
 #|

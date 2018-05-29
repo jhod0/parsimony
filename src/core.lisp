@@ -234,9 +234,12 @@
                  (recurse (&key (raise t) (default :noparse))
                     (declare (type boolean raise))
                     (eval-in-context self :raise raise :default default)))
+
             (declare (ignore (function peek) (function next)
                              (function location) (function fail)
-                             (function recurse)))
+                             (function recurse))
+                     (inline peek next
+                             location fail))
 
             ;; Actually execute the parser
             (handler-case
