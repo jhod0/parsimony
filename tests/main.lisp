@@ -391,6 +391,7 @@ type smallstring = packed array[1..20] of char;
       (prs:parse-grammar prs/e:small-grammar :input s))))
 
 (defun gen-small-grammar-obj (&optional (max-depth 10))
+  "Generator to create arbitrary objects of the `small-grammar`"
   (let* ((elt (fiveam:gen-one-element
                :integer :string :ident :symbol
                :cons :list))
@@ -425,6 +426,7 @@ type smallstring = packed array[1..20] of char;
       #'(lambda () (do-gen-obj 0)))))
 
 (defun small-grammar-obj-to-string (obj)
+  "Convert an object of the `small-grammar` for a string, to be parsed and checked."
   (typecase obj
     (fixnum (format nil "~s" obj))
     (string (format nil "\"~a\"" obj))
@@ -468,7 +470,7 @@ type smallstring = packed array[1..20] of char;
      '((:symbol "hi") (:symbol "there") 1 2 () 453 ((:symbol "a") . (:symbol "b")) . (:ident "artichoke")))))
 
 (test test-generated-simple-grammar
-  :description
+  :description "Auto-generated tests for a small, simple grammar."
   (for-all ((grammar-obj (gen-small-grammar-obj)))
     (let ((as-string (small-grammar-obj-to-string grammar-obj)))
       (check-grammar prs/e:small-grammar
@@ -509,5 +511,4 @@ type smallstring = packed array[1..20] of char;
        (:typedef "linkedlist"
         (:recdef
          (:var :idents ("value") :type "integer")
-         (:var :idents ("next") :type (:ptr "linkedlist"))))))
-    ))
+         (:var :idents ("next") :type (:ptr "linkedlist"))))))))
