@@ -30,7 +30,17 @@
                  :initarg :name
                  :initform (error "failure happened on A grammar"))))
 
+
+;; ===================
+;; Basic Grammar Rules
+;; ===================
+;; GRAMMAR-RULE structs will be used by the rest of the grammar analysis system,
+;; and so we need to convert the raw form given to DEFGRAMMAR into GRAMMAR-RULE
+;; structures. The following two functions will accomplish that.
+
 (defun internalize-rule (nonterminal number body)
+  "Creates a GRAMMAR-RULE struct for a rule targeting NONTERMINAL, with rule number
+NUMBER, and following the parse path & side effects specified by BODY."
   (labels ((partition-inputs-args (definition)
              (cond
                ((keywordp definition)
@@ -62,10 +72,13 @@ association list of association lists, mapping
 <nonterminal target> => <rule number> => <GRAMMAR-RULE>"
   (let ((rule-n 0)
         output-rules)
+    (declare (dynamic-extent output-rules)
+             (type fixnum rule-n))
     (dolist (nt rules)
       (let ((target (car nt))
             (these-rules (cdr nt))
             (these-output-rules))
+        (declare (dynamic-extent these-output-rules))
         (dolist (rule these-rules)
           (push (cons (incf rule-n)
                       (internalize-rule
@@ -75,6 +88,14 @@ association list of association lists, mapping
               output-rules)))
     (nreverse output-rules)))
 
+
+;; ==============
+;; Decision Trees
+;; ==============
+;; Tools for creating decision trees from the rules created above.
+;; A decision tree is a simple representation of the state machine for determining
+;; whether input fits a grammar, and what rules to invoke on the input.
+
 (defun interned-rules-to-trees (rules)
   "Creates a decision tree for each nonterminal target, given the sorted rules
 from INTERN-ALL-RULES. Returns an association list mapping nonterminal
@@ -82,10 +103,18 @@ keywords to DECISION-TREE structs."
   (labels ((make-decision-tree (target rules)
              (error "unimplemented")))
     (loop for group in rules
-       collect (cons (car rule)
+       collect (cons (car group)
                      (make-decision-tree
-                      (car rule)
-                      (cdr rule))))))
+                      (car group)
+                      (cdr group))))))
+
+
+;; ===========================
+;; Compile Time Representation
+;; ===========================
+;; Bringing all the above together, converts a user-input grammar into an
+;; internal representation to be used at compile-time. From this, the code for
+;; both the lookahead machine and the parser executer will be generated.
 
 (defun make-compile-time-grammar (name terminals nonterminals default-entry rules)
   "Creates a GRAMMAR-COMPILE-TIME-DEFINITION for internal compiler use."
