@@ -179,7 +179,7 @@
                                      input
                                      ""))
           (%do-eval-parser parser
-                           :input (if (stringp input) s  input)
+                           :input (if (stringp input) s input)
                            :catch-failure catch-failure
                            :raise raise :default default))
     (parse-failure (err)
