@@ -320,6 +320,16 @@ hello there"
      (:type (:ident "smallstring") :equals :packed
             :array :open-brace (:integer 1) :range-dots
             (:integer 20) :close-brace :of (:ident "char") :semicolon))
+
+    ("var a, b : array[1..30] of character;
+          anothervar ,blah : ^ integer;"
+
+     (:var (:ident "a") :comma (:ident "b") :colon :array
+           :open-brace (:integer 1) :range-dots (:integer 30) :close-brace
+           :of (:ident "character") :semicolon
+           (:ident "anothervar") :comma (:ident "blah") :colon
+           :carrot (:ident "integer") :semicolon))
+
     ("record a, b ,c : sometype ;
              other: packed array[1..30] of char;
 end"
