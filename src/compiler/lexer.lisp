@@ -88,6 +88,11 @@ Returns (values literal-rules complex-rules)"
     (pop (car node))
     (caar node)))
 
+;; TODO --
+;; There is a problem with parsing keywords - a keyword "begin" will match the
+;; identifier "beginning", splitting it into :begin and (:ident "ning")
+;; Fix - make separate :keywords argument to defparser? Tell it valid ident
+;; characters, i.e. chars which should not follow any keyword
 (defun literal-rules-to-tree (lit-rules)
   "Converts a list of literal lexing rules into a tree format, suitable for
 generating a parser.
@@ -187,7 +192,7 @@ as literals."
                                   (make-lexer-name name :literals))
               full-rule-definitions))))
 
-(defmacro deflexer (name &key documentation whitespace terminals include-eof)
+(defmacro deflexer (name &key documentation whitespace keywords terminals include-eof)
   "Generates a lexer definition, with a given name and the tokens specified in
 terminals."
   ;; When include-eof is true, automatically add a :eof terminal

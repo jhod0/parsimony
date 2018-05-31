@@ -28,13 +28,14 @@ http://www.cs.utsa.edu/~wagner/CS3723/grammar/examples2.html
            (otherwise (fail c)))))
       (otherwise (prs:fail c)))))
 
+
 (prs:deflexer small-pascal-lexer
   :documentation "Lexer for subset of Pascal"
   :whitespace (pascal-whitespace)
   :terminals
-  ((:begin "begin")
+  ((:program "program")
+   (:begin "begin")
    (:end "end")
-
    (:if "if")
    (:then "then")
    (:else "else")
@@ -43,6 +44,9 @@ http://www.cs.utsa.edu/~wagner/CS3723/grammar/examples2.html
    (:repeat "repeat")
    (:until "until")
    (:with "with")
+
+   (:label "label")
+   (:const "const")
 
    (:to "to")
    (:downto "downto")
@@ -64,14 +68,27 @@ http://www.cs.utsa.edu/~wagner/CS3723/grammar/examples2.html
    (:div "div")
    (:mod "mod")
 
+   (:not "not")
+
    (:ident ((s (prs:parse-some (prs:one-of "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"))))
            (coerce s 'string))
    (:integer (prs:parse-int))
 
+   (:equals "=")
+   (:not-equals "<>")
+   (:less-than "<")
+   (:less-than-or-equal "<=")
+   (:greater-than ">")
+   (:greater-than-or-equal ">=")
+
+   (:plus #\+)
+   (:minus #\-)
+   (:times #\*)
+   (:divide #\/)
+
    (:colon #\:)
    (:semicolon #\;)
    (:comma #\,)
-   (:equals #\=)
    (:carrot #\^)
    (:range-dots "..")
 
@@ -144,4 +161,53 @@ http://www.cs.utsa.edu/~wagner/CS3723/grammar/examples2.html
 
    (:recdef
     ((:record (:vardecllist vars) :end)
-     (cons :recdef vars)))))
+     (cons :recdef vars)))
+
+
+   ;; Expression definitions
+
+   (:sign :plus :minus)
+   (:variable :ident)
+
+   (:expression
+    (((:simple-expression se1) (:relational-operator re) (:simple-expression se2))
+     (list re se1 se2))
+    (((:simple-expression se))
+     se))
+
+   (:simple-expression
+    (((:sign si) (:term tr) (:addition-operator at) (:term te))
+     (list si at tr te))
+    (((:term tr) (:addition-operator at) (:term te))
+     (list at tr te))
+    (((:sign si) (:term te))
+     (list :term te :sign si))
+    (((:term tr))
+     (list :term tr)))
+
+   (:term
+    (((:factor f) (:multiplication-operator mf) (:factor fa))
+     (list mf f fa))
+    (((:factor f))
+     f))
+
+   (:factor
+    :variable :integer #| :string :set |# :nil
+    :ident
+    ((:open-paren (:expression e) :close-paren)
+     e)
+    ((:not (:factor f))
+     (list :not f)))
+
+   (:relational-operator
+    :equals :not-equals
+    :less-than
+    :less-than-or-equal
+    :greater-than
+    :greater-than-or-equal)
+
+   (:addition-operator
+    :plus :minus :or)
+
+   (:multiplication-operator
+    :times :divide :div :mod :and)))
